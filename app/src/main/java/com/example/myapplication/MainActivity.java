@@ -1,5 +1,6 @@
 package com.example.myapplication;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
@@ -15,6 +16,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.speech.tts.TextToSpeech;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AlphaAnimation;
@@ -29,7 +31,20 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.gms.ads.AdError;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.initialization.InitializationStatus;
+import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
+import com.google.android.gms.ads.interstitial.InterstitialAd;
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -39,13 +54,10 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
     static final int scoreIncrement = 25;
-
+    static Activity activity;
     static int play = 0;
     static Handler handler;
     static Button start;
-    int playTextSize = 16;
-
-    int score = 0;
     int uiReactionDelay = 150;
     public static final int TAP=0,SWITCH=1,HOLD=2,BLOCK=3,SLIDE_RIGHT=4,SLIDE_LEFT=5,SLIDE_UP=6,SLIDE_DOWN=7;
     public static ImageView playImageView;
@@ -66,7 +78,7 @@ TextView instruction;
     int play_height = 600;
     public SensorManager mSensorManager;
     public Sensor mSensor;
-
+    private InterstitialAd mInterstitialAd;
     @Override
     public void onSensorChanged(SensorEvent event) {
         float maxRange = mSensor.getMaximumRange();
@@ -96,6 +108,44 @@ TextView instruction;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         setContentView(R.layout.activity_main);
+        activity=this;
+
+        //AdMob
+        // Initialize the Mobile Ads SDK
+        MobileAds.initialize(this, new OnInitializationCompleteListener() {
+            @Override
+            public void onInitializationComplete(InitializationStatus initializationStatus) {
+                Toast.makeText(MainActivity.this, " successful ", Toast.LENGTH_SHORT).show();
+            }
+        });
+        AdView mAdView;
+        mAdView = findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        mAdView.loadAd(adRequest);
+
+        InterstitialAd.load(this,"ca-app-pub-3940256099942544/1033173712", adRequest,
+                new InterstitialAdLoadCallback() {
+                    @Override
+                    public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
+                        // The mInterstitialAd reference will be null until
+                        // an ad is loaded.
+                        mInterstitialAd = interstitialAd;
+                        Toast.makeText(MainActivity.this, " onAdLoaded ", Toast.LENGTH_SHORT).show();
+
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                        // Handle the error
+
+                        Toast.makeText(MainActivity.this, loadAdError.toString(), Toast.LENGTH_SHORT).show();
+                        mInterstitialAd = null;
+                    }
+                });
+
+
+
+
         currentPlayLayout = findViewById(R.id.playArea);
         playImageView = (ImageView) findViewById(R.id.playImageView);
         toaster = new Toast(this);
@@ -142,8 +192,8 @@ TextView instruction;
                         getResources().getDrawable(R.drawable.block),
                         getResources().getDrawable(R.drawable.right),
                         getResources().getDrawable(R.drawable.left),
-                        getResources().getDrawable(R.drawable.up),
-                        getResources().getDrawable(R.drawable.down)};
+                        getResources().getDrawable(R.drawable.actual_up_arrow),
+                        getResources().getDrawable(R.drawable.actual_down_arrow)};
 
         textToSpeech = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
             @Override
@@ -357,12 +407,12 @@ TextView instruction;
         sswitch.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                sswitch.setChecked(true);
-                sswitch.setRotation(180);
+
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
                         try {
+                            sswitch.setChecked(true);
                             Thread.sleep(uiReactionDelay);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
@@ -430,6 +480,54 @@ TextView instruction;
                             scoreTV.setText("000");
                             animateRemoveAllViews();
                             start.setVisibility(View.VISIBLE);
+
+
+
+                            mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback(){
+                                @Override
+                                public void onAdClicked() {
+                                    // Called when a click is recorded for an ad.
+                                    Toast.makeText(MainActivity.this, "Ad was clicked.", Toast.LENGTH_SHORT).show();
+
+                                }
+
+                                @Override
+                                public void onAdDismissedFullScreenContent() {
+                                    // Called when ad is dismissed.
+                                    // Set the ad reference to null so you don't show the ad a second time.
+                                    //Log.d(TAG, "Ad dismissed fullscreen content.");
+                                    Toast.makeText(MainActivity.this, "Ad dismissed fullscreen content.", Toast.LENGTH_SHORT).show();
+                                    mInterstitialAd = null;
+                                }
+
+                                @Override
+                                public void onAdFailedToShowFullScreenContent(AdError adError) {
+                                    // Called when ad fails to show.
+                                    //Log.e(TAG, "Ad failed to show fullscreen content.");
+                                    Toast.makeText(MainActivity.this, "Ad failed to show fullscreen content.", Toast.LENGTH_SHORT).show();
+                                    mInterstitialAd = null;
+                                }
+
+                                @Override
+                                public void onAdImpression() {
+                                    // Called when an impression is recorded for an ad.
+                                    //Log.d(TAG, "Ad recorded an impression.");
+                                    Toast.makeText(MainActivity.this, "Ad recorded an impression.", Toast.LENGTH_SHORT).show();
+                                }
+
+                                @Override
+                                public void onAdShowedFullScreenContent() {
+                                    // Called when ad is shown.
+                                    Toast.makeText(MainActivity.this, "Ad showed fullscreen content.", Toast.LENGTH_SHORT).show();
+                                    //Log.d(TAG, "Ad showed fullscreen content.");
+                                }
+                            });
+
+                            if (mInterstitialAd != null) {
+                                mInterstitialAd.show(activity);
+                            } else {
+                                toast(null,"The interstitial ad wasn't ready yet.");
+                            }
                         }
                     })
                     .setIcon(android.R.drawable.ic_dialog_alert)
@@ -570,6 +668,9 @@ TextView instruction;
         shake it (shake phone)
         squeeze
      */
+
+
+
 
 
 

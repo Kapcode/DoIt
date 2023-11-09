@@ -1,5 +1,6 @@
 package com.example.myapplication;
 
+import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -22,6 +23,7 @@ import android.view.animation.RotateAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -49,7 +51,20 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
     static final int scoreIncrement = 25;
-    static final int seekWidth = 60;
+    final int [] playColors = new int[]{
+            Color.rgb(106,0,128),
+            Color.rgb(51,0,77),
+            Color.rgb(34,0,102),
+    Color.rgb(0,64,77),
+    Color.rgb(0,64,77),
+    Color.rgb(102,0,34),
+    Color.rgb(102,34,0),
+    Color.rgb(13,77,0)};
+
+
+
+    static final int seekWidth = 75;
+    static final int switchSeekWidth = seekWidth+20;
     static final int sliderHeight = 50;
     static Activity activity;
     static int play = 0;
@@ -256,7 +271,8 @@ TextView instruction;
         button.setTextSize(16);
         button.setWidth(screen_width/2);
         button.setHeight(play_height);
-        button.setBackground(drawables[TAP]);
+        button.setBackgroundColor(playColors[TAP]);
+        button.setForeground(drawables[TAP]);
         //button.setText("TAP");
         button.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -286,7 +302,8 @@ TextView instruction;
 
     public void addHoldit(){
         Button button = new Button(this);
-        button.setBackground(drawables[HOLD]);
+        button.setBackgroundColor(playColors[HOLD]);
+        button.setForeground(drawables[HOLD]);
         button.setTextSize(16);
         button.setWidth(screen_width/2);
         button.setHeight(play_height);
@@ -319,9 +336,11 @@ TextView instruction;
         //and set the thumb arrow
 
         SeekBar seekBar = new SeekBar(this);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             seekBar.setMinHeight(sliderHeight);
             seekBar.setMaxHeight(sliderHeight);
+
         }
         Drawable progressDrawable = getResources().getDrawable(R.drawable.blue_texture);
         seekBar.setProgressDrawable(progressDrawable);
@@ -330,56 +349,86 @@ TextView instruction;
 
         // do the same thing, but with freakin rotation now! four times!
 
-
-
-        /*
-            LinearLayout ll = new LinearLayout(this);
-
-        ll.addView(switchSeek);
-        currentPlayLayout.addView(ll);
-        ViewGroup.LayoutParams ll_lp = ll.getLayoutParams();
-        ll_lp.width=screen_width/2;ll_lp.height=play_height;
-        ViewGroup.LayoutParams seekSwitch_lp = switchSeek.getLayoutParams();
-        seekSwitch_lp.width = screen_width/2;
-        seekSwitch_lp.height = seekWidth;
-        switchSeek.setLayoutParams(seekSwitch_lp);
-        ll.setPadding(0,play_height/2,0,0);
- */
-
-
-
-
-        currentPlayLayout.addView(seekBar);
-        ViewGroup.LayoutParams layoutParams = seekBar.getLayoutParams();
-        layoutParams.width = screen_width/2;
-        layoutParams.height = play_height;
-        seekBar.setLayoutParams(layoutParams);
-
-
-        //drawable.set
-
         if(play__direction == SLIDE_LEFT){
             //horizontal
             seekBar.setRotation(0);
             drawable= drawables[SLIDE_LEFT];
         }else if(play__direction==SLIDE_RIGHT){
             //horizontal
+
             seekBar.setRotation(0);
             drawable= drawables[SLIDE_RIGHT];
         }else if(play__direction == SLIDE_UP){
             //vertical
             seekBar.setRotation(270);
             drawable= drawables[SLIDE_UP];
-
         }else if(play__direction == SLIDE_DOWN){
             //vertical
             seekBar.setRotation(270);
             drawable= drawables[SLIDE_DOWN];
         }
+
         drawable.setTint(Color.WHITE);
         seekBar.setThumb(drawable);
         seekBar.setMax(100);
         seekBar.setProgress(50);
+
+
+
+        RelativeLayout ll = new RelativeLayout(this);
+
+        //seekBar.setBackgroundColor(Color.LTGRAY);
+        //ll.setBackgroundColor(Color.BLUE);
+        ll.addView(seekBar);
+        currentPlayLayout.addView(ll);
+        RelativeLayout.LayoutParams seek_lp = (RelativeLayout.LayoutParams) seekBar.getLayoutParams();
+        seek_lp.addRule(RelativeLayout.CENTER_IN_PARENT);
+        ViewGroup.LayoutParams ll_lp = ll.getLayoutParams();
+        ll_lp.width=screen_width/2;
+        ll_lp.height=play_height;
+        ll.setLayoutParams(ll_lp);
+
+        if(play__direction == SLIDE_LEFT){
+            ll.setBackgroundColor(playColors[SLIDE_LEFT]);
+            seek_lp.width = screen_width/2;
+            seek_lp.height = seekWidth;
+            seekBar.setLayoutParams(seek_lp);
+            //ll.setPadding(0,play_height/2,0,0);
+        }else if(play__direction==SLIDE_RIGHT){
+            ll.setBackgroundColor(playColors[SLIDE_RIGHT]);
+            seek_lp.width = screen_width/2;
+            seek_lp.height = seekWidth;
+            seekBar.setLayoutParams(seek_lp);
+            //ll.setPadding(0,play_height/2,0,0);
+        }else if(play__direction == SLIDE_UP){//rotate
+            ll.setBackgroundColor(playColors[SLIDE_UP]);
+            seek_lp.width = screen_width/2;
+            seek_lp.height = seekWidth;
+            //seekBar.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }else if(play__direction == SLIDE_DOWN){//rotate
+            ll.setBackgroundColor(playColors[SLIDE_DOWN]);
+            seek_lp.width = screen_width/2;
+            seek_lp.height = seekWidth;
+            //seek_lp =new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+
+            seekBar.setLayoutParams(seek_lp);
+        }
+
+
+
+
+
+        //currentPlayLayout.addView(seekBar);
+        //ViewGroup.LayoutParams layoutParams = seekBar.getLayoutParams();
+        //layoutParams.width = screen_width/2;
+        //layoutParams.height = play_height;
+        //seekBar.setLayoutParams(layoutParams);
+
+
+
+
+
+
 
         int startedOn = 50;
         final int thisPlay = play__direction;
@@ -434,17 +483,43 @@ TextView instruction;
         switchSeek.setThumb(drawable);
 
 
+        Switch sswitch = new Switch(this);
+        //sswitch.setChecked(false);
+        sswitch.toggle();
 
-        LinearLayout ll = new LinearLayout(this);
+        sswitch.setTextSize(16);
+        sswitch.setWidth(screen_width/2);
+        sswitch.setHeight(play_height);
+        sswitch.setThumbDrawable(drawables[SWITCH]);
+        //sswitch.getThumbDrawable().setTint(android.R.color.holo_orange_light);//orange
+        //sswitch.setText("Switch");
+        sswitch.setSwitchMinWidth((screen_width/2));
+
+
+
+
+        RelativeLayout ll = new RelativeLayout(this);
+        ll.setBackgroundColor(playColors[SWITCH]);
+        //seekBar.setBackgroundColor(Color.LTGRAY);
+        //ll.setBackgroundColor(Color.BLUE);
         ll.addView(switchSeek);
         currentPlayLayout.addView(ll);
+        RelativeLayout.LayoutParams seek_lp = (RelativeLayout.LayoutParams) switchSeek.getLayoutParams();
+        seek_lp.height = switchSeekWidth;//Make the switch thicker!
+        seek_lp.addRule(RelativeLayout.CENTER_IN_PARENT);
+        seek_lp.addRule(RelativeLayout.CENTER_VERTICAL);
+        seek_lp.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+        seek_lp.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
         ViewGroup.LayoutParams ll_lp = ll.getLayoutParams();
-        ll_lp.width=screen_width/2;ll_lp.height=play_height;
-        ViewGroup.LayoutParams seekSwitch_lp = switchSeek.getLayoutParams();
-        seekSwitch_lp.width = screen_width/2;
-        seekSwitch_lp.height = seekWidth;
-        switchSeek.setLayoutParams(seekSwitch_lp);
-        ll.setPadding(0,play_height/2,0,0);
+        ll_lp.width=screen_width/2;
+        ll_lp.height=play_height;
+        ll.setLayoutParams(ll_lp);
+
+
+
+
+
+
 
 
 
@@ -486,16 +561,7 @@ TextView instruction;
 
 
 
-        Switch sswitch = new Switch(this);
-        //sswitch.setChecked(false);
-        sswitch.toggle();
 
-        sswitch.setTextSize(16);
-        sswitch.setWidth(screen_width/2);
-        sswitch.setHeight(play_height);
-       sswitch.setThumbDrawable(drawables[SWITCH]);
-        //sswitch.setText("Switch");
-        sswitch.setSwitchMinWidth((screen_width/2));
         //sswitch.setBackgroundColor(Color.GRAY);
 
 
@@ -694,8 +760,34 @@ TextView instruction;
             playImageView.setForeground(drawables2[play]);
 
 
+
+
+
     }
 
+    public void addPlayBlock(){
+        Button button = new Button(this);
+        button.setForeground(drawables[BLOCK]);
+        button.setBackgroundColor(playColors[BLOCK]);
+        button.setWidth(screen_width/2);
+        button.setHeight(play_height);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                wrongAnswer();
+            }
+        });
+        button.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                wrongAnswer();
+                return true;//return true or error!
+            }
+        });
+        currentPlayLayout.addView(button);
+
+
+    }
 
 
     public void addPlayByNumber(int play){
@@ -709,6 +801,8 @@ TextView instruction;
                     addHoldit();
                 }else if(key == SLIDE_LEFT || key == SLIDE_RIGHT || key == SLIDE_UP || key == SLIDE_DOWN){
                     addPlaySlide(play);
+                }else if(key == BLOCK){
+                    addPlayBlock();
                 }
 
 

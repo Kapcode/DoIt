@@ -55,8 +55,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             Color.rgb(106,0,128),
             Color.rgb(51,0,77),
             Color.rgb(34,0,102),
-    Color.rgb(0,64,77),
-    Color.rgb(0,64,77),
+    Color.rgb(0,84,77),
+    Color.rgb(10,64,77),
     Color.rgb(102,0,34),
     Color.rgb(102,34,0),
     Color.rgb(13,77,0)};

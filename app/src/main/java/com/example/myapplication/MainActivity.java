@@ -4,9 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
-import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -16,15 +14,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.speech.tts.TextToSpeech;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
 import android.view.animation.RotateAnimation;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
@@ -54,6 +49,8 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
     static final int scoreIncrement = 25;
+    static final int seekWidth = 60;
+    static final int sliderHeight = 50;
     static Activity activity;
     static int play = 0;
     static Handler handler;
@@ -243,81 +240,7 @@ TextView instruction;
 
 
 
-    public void addPlaySlide(int play__direction){
-        //set vert or horiz
-        //and set the thumb arrow
 
-        SeekBar seekBar = new SeekBar(this);
-        Drawable drawable = null;
-
-
-        //drawable.set
-
-        if(play__direction == SLIDE_LEFT){
-            //horizontal
-            seekBar.setRotation(0);
-            drawable= drawables[SLIDE_LEFT];
-        }else if(play__direction==SLIDE_RIGHT){
-            //horizontal
-            seekBar.setRotation(0);
-            drawable= drawables[SLIDE_RIGHT];
-        }else if(play__direction == SLIDE_UP){
-            //vertical
-            seekBar.setRotation(270);
-            drawable= drawables[SLIDE_UP];
-
-        }else if(play__direction == SLIDE_DOWN){
-            //vertical
-            seekBar.setRotation(270);
-            drawable= drawables[SLIDE_DOWN];
-        }
-        drawable.setTint(Color.WHITE);
-        seekBar.setThumb(drawable);
-        seekBar.setMax(100);
-        seekBar.setProgress(50);
-
-        int startedOn = 50;
-        final int thisPlay = play__direction;
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                //don't need
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-                if(thisPlay == play &&thisPlay==SLIDE_RIGHT && seekBar.getProgress() > startedOn){
-                    toast(seekBar,"slide " + thisPlay);
-                    correctAnswer();
-                } else if(thisPlay == play &&thisPlay==SLIDE_UP && seekBar.getProgress() > startedOn){
-                    toast(seekBar,"slide " + thisPlay);
-                    correctAnswer();
-                } else if(thisPlay == play &&thisPlay==SLIDE_LEFT && seekBar.getProgress() < startedOn){
-                    toast(seekBar,"slide " + thisPlay);
-                    correctAnswer();
-                } else if(thisPlay == play &&thisPlay==SLIDE_DOWN && seekBar.getProgress() < startedOn){
-                    toast(seekBar,"slide " + thisPlay);
-                    correctAnswer();
-                }else{
-                   wrongAnswer();
-                }
-
-            }
-        });
-        currentPlayLayout.addView(seekBar);
-        ViewGroup.LayoutParams layoutParams = seekBar.getLayoutParams();
-        layoutParams.width = screen_width/2;
-        layoutParams.height = play_height;
-        seekBar.setLayoutParams(layoutParams);
-
-    }
 
 
 
@@ -390,13 +313,183 @@ TextView instruction;
     }
 
 
+    public void addPlaySlide(int play__direction){
 
+        //set vert or horiz
+        //and set the thumb arrow
+
+        SeekBar seekBar = new SeekBar(this);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            seekBar.setMinHeight(sliderHeight);
+            seekBar.setMaxHeight(sliderHeight);
+        }
+        Drawable progressDrawable = getResources().getDrawable(R.drawable.blue_texture);
+        seekBar.setProgressDrawable(progressDrawable);
+        Drawable drawable = null;
+
+
+        // do the same thing, but with freakin rotation now! four times!
+
+
+
+        /*
+            LinearLayout ll = new LinearLayout(this);
+
+        ll.addView(switchSeek);
+        currentPlayLayout.addView(ll);
+        ViewGroup.LayoutParams ll_lp = ll.getLayoutParams();
+        ll_lp.width=screen_width/2;ll_lp.height=play_height;
+        ViewGroup.LayoutParams seekSwitch_lp = switchSeek.getLayoutParams();
+        seekSwitch_lp.width = screen_width/2;
+        seekSwitch_lp.height = seekWidth;
+        switchSeek.setLayoutParams(seekSwitch_lp);
+        ll.setPadding(0,play_height/2,0,0);
+ */
+
+
+
+
+        currentPlayLayout.addView(seekBar);
+        ViewGroup.LayoutParams layoutParams = seekBar.getLayoutParams();
+        layoutParams.width = screen_width/2;
+        layoutParams.height = play_height;
+        seekBar.setLayoutParams(layoutParams);
+
+
+        //drawable.set
+
+        if(play__direction == SLIDE_LEFT){
+            //horizontal
+            seekBar.setRotation(0);
+            drawable= drawables[SLIDE_LEFT];
+        }else if(play__direction==SLIDE_RIGHT){
+            //horizontal
+            seekBar.setRotation(0);
+            drawable= drawables[SLIDE_RIGHT];
+        }else if(play__direction == SLIDE_UP){
+            //vertical
+            seekBar.setRotation(270);
+            drawable= drawables[SLIDE_UP];
+
+        }else if(play__direction == SLIDE_DOWN){
+            //vertical
+            seekBar.setRotation(270);
+            drawable= drawables[SLIDE_DOWN];
+        }
+        drawable.setTint(Color.WHITE);
+        seekBar.setThumb(drawable);
+        seekBar.setMax(100);
+        seekBar.setProgress(50);
+
+        int startedOn = 50;
+        final int thisPlay = play__direction;
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                //don't need
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+                if(thisPlay == play &&thisPlay==SLIDE_RIGHT && seekBar.getProgress() > startedOn){
+                    toast(seekBar,"slide " + thisPlay);
+                    correctAnswer();
+                } else if(thisPlay == play &&thisPlay==SLIDE_UP && seekBar.getProgress() > startedOn){
+                    toast(seekBar,"slide " + thisPlay);
+                    correctAnswer();
+                } else if(thisPlay == play &&thisPlay==SLIDE_LEFT && seekBar.getProgress() < startedOn){
+                    toast(seekBar,"slide " + thisPlay);
+                    correctAnswer();
+                } else if(thisPlay == play &&thisPlay==SLIDE_DOWN && seekBar.getProgress() < startedOn){
+                    toast(seekBar,"slide " + thisPlay);
+                    correctAnswer();
+                }else{
+                    wrongAnswer();
+                }
+
+            }
+        });
+
+
+    }
 
 
 
     public void addPlaySwtich(){
+        SeekBar switchSeek = new SeekBar(this);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            switchSeek.setMinHeight(sliderHeight);
+            switchSeek.setMaxHeight(sliderHeight);
+        }
+        Drawable progressDrawable = getResources().getDrawable(R.drawable.gray_texture);
+        switchSeek.setProgressDrawable(progressDrawable);
+        Drawable drawable = drawables[SWITCH];
+        switchSeek.setThumb(drawable);
+
+
+
+        LinearLayout ll = new LinearLayout(this);
+        ll.addView(switchSeek);
+        currentPlayLayout.addView(ll);
+        ViewGroup.LayoutParams ll_lp = ll.getLayoutParams();
+        ll_lp.width=screen_width/2;ll_lp.height=play_height;
+        ViewGroup.LayoutParams seekSwitch_lp = switchSeek.getLayoutParams();
+        seekSwitch_lp.width = screen_width/2;
+        seekSwitch_lp.height = seekWidth;
+        switchSeek.setLayoutParams(seekSwitch_lp);
+        ll.setPadding(0,play_height/2,0,0);
+
+
+
+        switchSeek.setMax(100);
+        switchSeek.setProgress(10);
+
+        int startedOn = 50;
+
+
+
+        switchSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                //don't need
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+                if(play==SWITCH && seekBar.getProgress() > startedOn){
+                    toast(seekBar,"slide " + play);
+                    correctAnswer();
+                }else{
+                    wrongAnswer();
+                }
+
+            }
+        });
+
+
+
+
+
+
+
         Switch sswitch = new Switch(this);
-        sswitch.setChecked(false);
+        //sswitch.setChecked(false);
+        sswitch.toggle();
+
         sswitch.setTextSize(16);
         sswitch.setWidth(screen_width/2);
         sswitch.setHeight(play_height);
@@ -404,48 +497,27 @@ TextView instruction;
         //sswitch.setText("Switch");
         sswitch.setSwitchMinWidth((screen_width/2));
         //sswitch.setBackgroundColor(Color.GRAY);
-        sswitch.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            sswitch.setChecked(true);
-                            Thread.sleep(uiReactionDelay);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-
-                        if (play == SWITCH) {
-                            //correct
-                            toast(view, "SWITCH");
 
 
-                            correctAnswer();
-                        }else{
-                            wrongAnswer();
-                        }
 
 
-                    }
-                });
 
 
-            }
-        });
 
-        sswitch.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View view) {
-                wrongAnswer();
-                return true;
-            }
-        });
-        //TODO handle switching
-        currentPlayLayout.addView(sswitch);
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
     public void correctAnswer(){
         //increment score
         int score = Integer.parseInt(scoreTV.getText().toString());
@@ -541,7 +613,7 @@ TextView instruction;
 
     }
 
-
+//...
     public void animateRemoveAllViews(){
         currentPlayLayout.removeAllViews();
         //animateRemoveView(currentPlayLayout.getChildAt(0));

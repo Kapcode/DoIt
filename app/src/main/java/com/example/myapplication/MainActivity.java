@@ -299,6 +299,7 @@ TextView instruction;
 
     public void startDetectingShake(){
         stopDetectingBlock();
+        //shakeDetector.setSensitivity();//TODO
         SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         if(shakeDetector==null)shakeDetector = new ShakeDetector(this);
         shakeDetector.start(sensorManager);

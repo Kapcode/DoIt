@@ -9,6 +9,25 @@
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
+    <TextView
+        android:id="@+id/instruction"
+        android:layout_width="350dp"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:background="#4DFFFF8A"
+        android:text="@string/tap_it"
+        android:textAlignment="center"
+        android:textSize="34sp" />
+
+    <ImageView
+        android:id="@+id/blockImageAnimatedSignal"
+        android:layout_width="35dp"
+        android:layout_height="35dp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:foreground="@drawable/block"
+        android:visibility="gone" />
+
     <com.google.android.gms.ads.AdView
         android:id="@+id/adView"
         android:layout_width="wrap_content"
@@ -93,15 +112,5 @@
             android:text="Switch" />
 
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/instruction"
-        android:layout_width="250dp"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:background="#4DFFFF8A"
-        android:text="@string/tap_it"
-        android:textAlignment="center"
-        android:textSize="34sp" />
 
 </RelativeLayout>

@@ -1,13 +1,10 @@
 package com.example.myapplication;
 
-import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.graphics.Color;
-import android.graphics.Point;
-import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -18,12 +15,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.speech.tts.TextToSpeech;
 import android.view.MotionEvent;
-import android.view.TouchDelegate;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
+import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
+import android.view.animation.TranslateAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -53,8 +51,11 @@ import java.util.Locale;
 import java.util.OptionalInt;
 import java.util.Random;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener {
+public class MainActivity extends AppCompatActivity implements SensorEventListener , ShakeDetector.Listener {
     static final int scoreIncrement = 25;
+    ShakeDetector shakeDetector;
+    final boolean fail_for_block_when_not_correct_play = true;// some might find that annoying,
+    // deffinatly could be issue for shake or tilt / acidentaly tilting phone while plying  (maybey check if its even on the board?)
     static final int swipeThreshhold = 35;
     final int [] playColors = new int[]{
             Color.rgb(106,0,128),
@@ -64,11 +65,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     Color.rgb(10,64,77),
     Color.rgb(102,0,34),
     Color.rgb(102,34,0),
-    Color.rgb(13,77,0)};
+    Color.rgb(13,77,0),
+    Color.rgb(204, 0, 102)};
 
 
 
     static final int seekWidth = 75;
+    public static ImageView blockImageAnimatedSignal;
     static final int switchSeekWidth = seekWidth+20;
     static final int sliderHeight = 50;
     static Activity activity;
@@ -76,14 +79,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     static Handler handler;
     static Button start;
     int uiReactionDelay = 150;
-    public static final int TAP=0,SWITCH=1,HOLD=2,BLOCK=3,SLIDE_RIGHT=4,SLIDE_LEFT=5,SLIDE_UP=6,SLIDE_DOWN=7;
+    public static final int TAP=0,SWITCH=1,HOLD=2,BLOCK=3,SLIDE_RIGHT=4,SLIDE_LEFT=5,SLIDE_UP=6,SLIDE_DOWN=7,SHAKE=8;
     public static ImageView playImageView;
     public static final int ENGLISH = 0;
     public static final int SPANISH = 1;
     public static int language = ENGLISH;
     public static TextToSpeech textToSpeech;
     HashMap <Integer,String[]> instructionTypes = new HashMap<Integer,String[]>();
-    Drawable[] drawables,drawables2;
+    Drawable[] drawables_used_for_play_cards, drawables_used_for_play_image_view;
     TextView scoreTV,livesTV;
 
 
@@ -96,8 +99,29 @@ TextView instruction;
     public SensorManager mSensorManager;
     public Sensor mSensor;
     private InterstitialAd mInterstitialAd;
+
+
+
+    //shaking
+    /* put this into your activity class */
+    private SensorManager mSensorManagerShake;
+    private float mAccel; // acceleration apart from gravity
+    private float mAccelCurrent; // current acceleration including gravity
+    private float mAccelLast; // last acceleration including gravity
+
+
+
     @Override
     public void onSensorChanged(SensorEvent event) {
+
+
+
+
+
+
+
+
+
         float maxRange = mSensor.getMaximumRange();
         if(maxRange == event.values[0]) {
         // Do something when something is far away.
@@ -108,8 +132,10 @@ TextView instruction;
                     //correct
                     toast(null,"BLOCK");
                     correctAnswer();
-                }else{
+                }else if(fail_for_block_when_not_correct_play){
                     wrongAnswer();
+                }else{
+
                 }
             }
 
@@ -126,39 +152,8 @@ TextView instruction;
     protected void onCreate(Bundle savedInstanceState) {
         setContentView(R.layout.activity_main);
         activity=this;
-
-        //AdMob
-        // Initialize the Mobile Ads SDK
-        MobileAds.initialize(this, new OnInitializationCompleteListener() {
-            @Override
-            public void onInitializationComplete(InitializationStatus initializationStatus) {
-                Toast.makeText(MainActivity.this, " successful ", Toast.LENGTH_SHORT).show();
-            }
-        });
-        AdView mAdView;
-        mAdView = findViewById(R.id.adView);
-        AdRequest adRequest = new AdRequest.Builder().build();
-        mAdView.loadAd(adRequest);
-
-        InterstitialAd.load(this,"ca-app-pub-3940256099942544/1033173712", adRequest,
-                new InterstitialAdLoadCallback() {
-                    @Override
-                    public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
-                        // The mInterstitialAd reference will be null until
-                        // an ad is loaded.
-                        mInterstitialAd = interstitialAd;
-                        Toast.makeText(MainActivity.this, " onAdLoaded ", Toast.LENGTH_SHORT).show();
-
-                    }
-
-                    @Override
-                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                        // Handle the error
-
-                        Toast.makeText(MainActivity.this, loadAdError.toString(), Toast.LENGTH_SHORT).show();
-                        mInterstitialAd = null;
-                    }
-                });
+        //TODO
+        loadAds();
 
 
 
@@ -171,6 +166,7 @@ TextView instruction;
         mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
         scoreTV = (TextView)findViewById(R.id.scoretv) ;
         livesTV = (TextView)findViewById(R.id.livestv);
+        blockImageAnimatedSignal = (ImageView)findViewById(R.id.blockImageAnimatedSignal);
         handler = new Handler();
         start.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -191,18 +187,20 @@ TextView instruction;
         instructionTypes.put(5,new String[]{"Slide Left",""});
         instructionTypes.put(6,new String[]{"Slide Up",""});
         instructionTypes.put(7,new String[]{"Slide Down",""});
+        instructionTypes.put(8,new String[]{"Shake",""});
         //add drawables in order by index
-        drawables= new Drawable[]
+        drawables_used_for_play_cards = new Drawable[]
                 {getResources().getDrawable(R.drawable.tap),//
                         getResources().getDrawable(R.drawable.sswitch),
                         getResources().getDrawable(R.drawable.handshake),
                         getResources().getDrawable(R.drawable.block),
                         getResources().getDrawable(R.drawable.right),//r
                         getResources().getDrawable(R.drawable.left),//l
-                        getResources().getDrawable(R.drawable.up),//u
-                        getResources().getDrawable(R.drawable.down)};//d
+                        getResources().getDrawable(R.drawable.actual_up_arrow),//u
+                        getResources().getDrawable(R.drawable.actual_down_arrow),
+                getResources().getDrawable(R.drawable.shake)};//d
 
-        drawables2= new Drawable[]
+        drawables_used_for_play_image_view = new Drawable[]
                 {getResources().getDrawable(R.drawable.tap),
                         getResources().getDrawable(R.drawable.sswitch),
                         getResources().getDrawable(R.drawable.handshake),
@@ -210,7 +208,8 @@ TextView instruction;
                         getResources().getDrawable(R.drawable.right),
                         getResources().getDrawable(R.drawable.left),
                         getResources().getDrawable(R.drawable.actual_up_arrow),
-                        getResources().getDrawable(R.drawable.actual_down_arrow)};
+                        getResources().getDrawable(R.drawable.actual_down_arrow),
+                        getResources().getDrawable(R.drawable.shake)};
 
         textToSpeech = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
             @Override
@@ -224,18 +223,21 @@ TextView instruction;
             }
         });
         removePlays();
-
-        
-        
-
         super.onCreate(savedInstanceState);
     }
+
     @Override
     protected void onResume() {
         // Register a listener for the sensor.
         super.onResume();
-        mSensorManager.registerListener(this, mSensor,
-                SensorManager.SENSOR_DELAY_NORMAL);
+
+    }
+    @Override
+    protected void onPause() {
+        // Register a listener for the sensor.
+        super.onResume();
+        stopDetectingBlock();
+        stopDetectingShake();
     }
     public void toast(View v,String s){
         cancel();
@@ -259,8 +261,61 @@ TextView instruction;
 
 
 
+    public void loadAds(){
+        //AdMob
+        // Initialize the Mobile Ads SDK
+        MobileAds.initialize(this, new OnInitializationCompleteListener() {
+            @Override
+            public void onInitializationComplete(InitializationStatus initializationStatus) {
+                Toast.makeText(MainActivity.this, " successful ", Toast.LENGTH_SHORT).show();
+            }
+        });
+        AdView mAdView;
+        mAdView = findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().build();
 
+        mAdView.loadAd(adRequest);
 
+        InterstitialAd.load(this,"ca-app-pub-3940256099942544/1033173712", adRequest,
+                new InterstitialAdLoadCallback() {
+                    @Override
+                    public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
+                        // The mInterstitialAd reference will be null until
+                        // an ad is loaded.
+                        mInterstitialAd = interstitialAd;
+                        Toast.makeText(MainActivity.this, " onAdLoaded ", Toast.LENGTH_SHORT).show();
+
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                        // Handle the error
+
+                        Toast.makeText(MainActivity.this, loadAdError.toString(), Toast.LENGTH_SHORT).show();
+                        mInterstitialAd = null;
+                    }
+                });
+    }
+
+    public void startDetectingShake(){
+        stopDetectingBlock();
+        SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        if(shakeDetector==null)shakeDetector = new ShakeDetector(this);
+        shakeDetector.start(sensorManager);
+    }
+    public void stopDetectingShake(){
+        if(shakeDetector!=null)shakeDetector.stop();//won't need null check after done creating shake Detection
+    }
+
+    public void startDetectionBlock(){
+        stopDetectingShake();
+        mSensorManager.registerListener(this, mSensor,
+                SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    public void stopDetectingBlock(){
+        mSensorManager.unregisterListener(this, mSensor);
+    }
 
 
 
@@ -277,7 +332,7 @@ TextView instruction;
         button.setWidth(screen_width/2);
         button.setHeight(play_height);
         button.setBackgroundColor(playColors[TAP]);
-        button.setForeground(drawables[TAP]);
+        button.setForeground(drawables_used_for_play_cards[TAP]);
         //button.setText("TAP");
         button.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -308,7 +363,7 @@ TextView instruction;
     public void addHoldit(){
         Button button = new Button(this);
         button.setBackgroundColor(playColors[HOLD]);
-        button.setForeground(drawables[HOLD]);
+        button.setForeground(drawables_used_for_play_cards[HOLD]);
         button.setTextSize(16);
         button.setWidth(screen_width/2);
         button.setHeight(play_height);
@@ -338,7 +393,7 @@ TextView instruction;
         Button button = new Button(this);
         button.setLayoutParams(new ViewGroup.LayoutParams(screen_width/2,play_height));
         button.setBackgroundColor(playColors[play__direction]);
-        button.setForeground(drawables2[play__direction]);
+        button.setForeground(drawables_used_for_play_cards[play__direction]);
         currentPlayLayout.addView(button);
         final float[] dX = new float[1];
         final float[] dY = new float[1];
@@ -406,7 +461,7 @@ TextView instruction;
         }
         Drawable progressDrawable = getResources().getDrawable(R.drawable.gray_texture);
         switchSeek.setProgressDrawable(progressDrawable);
-        Drawable drawable = drawables[SWITCH];
+        Drawable drawable = drawables_used_for_play_cards[SWITCH];
         switchSeek.setThumb(drawable);
 
 
@@ -417,7 +472,7 @@ TextView instruction;
         sswitch.setTextSize(16);
         sswitch.setWidth(screen_width/2);
         sswitch.setHeight(play_height);
-        sswitch.setThumbDrawable(drawables[SWITCH]);
+        sswitch.setThumbDrawable(drawables_used_for_play_cards[SWITCH]);
         //sswitch.getThumbDrawable().setTint(android.R.color.holo_orange_light);//orange
         //sswitch.setText("Switch");
         sswitch.setSwitchMinWidth((screen_width/2));
@@ -472,7 +527,7 @@ TextView instruction;
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
 
-                if(play==SWITCH && seekBar.getProgress() > startedOn){
+                if(play==SWITCH){
                     toast(seekBar,"slide " + play);
                     correctAnswer();
                 }else{
@@ -481,25 +536,7 @@ TextView instruction;
 
             }
         });
-
-
-
-
-
-
-
-
-
         //sswitch.setBackgroundColor(Color.GRAY);
-
-
-
-
-
-
-
-
-
 
     }
 
@@ -523,7 +560,7 @@ TextView instruction;
     }
 
     public void wrongAnswer(){
-
+        stopBlockImageAnimatedSignal();
         say("Wrong!");
 
         int score = Integer.parseInt(scoreTV.getText().toString());
@@ -549,7 +586,7 @@ TextView instruction;
 
 
 
-                            mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback(){
+                           if(mInterstitialAd!=null) mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback(){
                                 @Override
                                 public void onAdClicked() {
                                     // Called when a click is recorded for an ad.
@@ -650,7 +687,7 @@ TextView instruction;
         currentPlayLayout.addView(v);
     }
     public void nextPlay(){
-
+        stopBlockImageAnimatedSignal();
         //remove plays
 
         //pick next correct play at random
@@ -682,20 +719,42 @@ TextView instruction;
                 currentPlayLayout.removeView(v);
                 currentPlayLayout.addView(v);
             }
-
             say(instruction.getText().toString());
-
-            playImageView.setForeground(drawables2[play]);
-
-
-
-
+            playImageView.setForeground(drawables_used_for_play_image_view[play]);
 
     }
 
+
+    public void addPlayShake(){
+        ImageView v = new ImageView(this);
+        v.setForeground(drawables_used_for_play_cards[SHAKE].mutate());
+        RelativeLayout rl = new RelativeLayout(this);
+        rl.setBackgroundColor(playColors[SHAKE]);
+        //seekBar.setBackgroundColor(Color.LTGRAY);
+        //ll.setBackgroundColor(Color.BLUE);
+        rl.addView(v);
+        currentPlayLayout.addView(rl);
+        RelativeLayout.LayoutParams seek_lp = (RelativeLayout.LayoutParams) v.getLayoutParams();
+        seek_lp.height = play_height;//Make the switch thicker!
+        seek_lp.width= screen_width/2;
+        seek_lp.addRule(RelativeLayout.CENTER_IN_PARENT);
+        seek_lp.addRule(RelativeLayout.CENTER_VERTICAL);
+        seek_lp.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+        seek_lp.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+        ViewGroup.LayoutParams rl_lp = rl.getLayoutParams();
+        rl_lp.width=screen_width/2;
+        rl_lp.height=play_height;
+        rl.setLayoutParams(rl_lp);
+
+        startDetectingShake();
+    }
+
+
+
     public void addPlayBlock(){
+
         Button button = new Button(this);
-        button.setForeground(drawables[BLOCK]);
+        button.setForeground(drawables_used_for_play_cards[BLOCK]);
         button.setBackgroundColor(playColors[BLOCK]);
         button.setWidth(screen_width/2);
         button.setHeight(play_height);
@@ -715,7 +774,32 @@ TextView instruction;
         currentPlayLayout.addView(button);
 
 
+
+
+        //block animation
+
+        if(play==BLOCK){
+            startBlockImageAnimatedSignal();
+        }
+        startDetectionBlock();
+
     }
+
+    public void startBlockImageAnimatedSignal(){
+        blockImageAnimatedSignal.setVisibility(View.VISIBLE);
+        Animation mAnimation = new AlphaAnimation(1, 0);
+        mAnimation.setDuration(500);
+        mAnimation.setInterpolator(new LinearInterpolator());
+        mAnimation.setRepeatCount(Animation.INFINITE);
+        mAnimation.setRepeatMode(Animation.REVERSE);
+        blockImageAnimatedSignal.startAnimation(mAnimation);
+    }
+    public void stopBlockImageAnimatedSignal(){
+        blockImageAnimatedSignal.setVisibility(View.GONE);
+        blockImageAnimatedSignal.clearAnimation();
+    }
+
+
 
 
     public void addPlayByNumber(int play){
@@ -732,6 +816,8 @@ TextView instruction;
                     swipe(play);
                 }else if(key == BLOCK){
                     addPlayBlock();
+                }else if(key == SHAKE){
+                    addPlayShake();
                 }
 
 
@@ -756,6 +842,14 @@ TextView instruction;
 
         int start = 0;
         return random.orElse(start);
+    }
+
+    @Override
+    public void hearShake() {
+        System.out.println("SHOOK!");
+        if(play == SHAKE){
+            correctAnswer();
+        }//TODO catch a wrong answer if in play!
     }
 
     /*

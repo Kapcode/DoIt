@@ -6,6 +6,8 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -15,6 +17,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.speech.tts.TextToSpeech;
+import android.view.MotionEvent;
+import android.view.TouchDelegate;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AlphaAnimation;
@@ -51,6 +55,7 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
     static final int scoreIncrement = 25;
+    static final int swipeThreshhold = 35;
     final int [] playColors = new int[]{
             Color.rgb(106,0,128),
             Color.rgb(51,0,77),
@@ -329,145 +334,67 @@ TextView instruction;
         currentPlayLayout.addView(button);
     }
 
-
-    public void addPlaySlide(int play__direction){
-
-        //set vert or horiz
-        //and set the thumb arrow
-
-        SeekBar seekBar = new SeekBar(this);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            seekBar.setMinHeight(sliderHeight);
-            seekBar.setMaxHeight(sliderHeight);
-
-        }
-        Drawable progressDrawable = getResources().getDrawable(R.drawable.blue_texture);
-        seekBar.setProgressDrawable(progressDrawable);
-        Drawable drawable = null;
+    public void swipe(int play__direction){
+        Button button = new Button(this);
+        button.setLayoutParams(new ViewGroup.LayoutParams(screen_width/2,play_height));
+        button.setBackgroundColor(playColors[play__direction]);
+        button.setForeground(drawables2[play__direction]);
+        currentPlayLayout.addView(button);
+        final float[] dX = new float[1];
+        final float[] dY = new float[1];
+        final int[] startXY = new int[2];
 
 
-        // do the same thing, but with freakin rotation now! four times!
-
-        if(play__direction == SLIDE_LEFT){
-            //horizontal
-            seekBar.setRotation(0);
-            drawable= drawables[SLIDE_LEFT];
-        }else if(play__direction==SLIDE_RIGHT){
-            //horizontal
-
-            seekBar.setRotation(0);
-            drawable= drawables[SLIDE_RIGHT];
-        }else if(play__direction == SLIDE_UP){
-            //vertical
-            seekBar.setRotation(270);
-            drawable= drawables[SLIDE_UP];
-        }else if(play__direction == SLIDE_DOWN){
-            //vertical
-            seekBar.setRotation(270);
-            drawable= drawables[SLIDE_DOWN];
-        }
-
-        drawable.setTint(Color.WHITE);
-        seekBar.setThumb(drawable);
-        seekBar.setMax(100);
-        seekBar.setProgress(50);
-
-
-
-        RelativeLayout ll = new RelativeLayout(this);
-
-        //seekBar.setBackgroundColor(Color.LTGRAY);
-        //ll.setBackgroundColor(Color.BLUE);
-        ll.addView(seekBar);
-        currentPlayLayout.addView(ll);
-        RelativeLayout.LayoutParams seek_lp = (RelativeLayout.LayoutParams) seekBar.getLayoutParams();
-        seek_lp.addRule(RelativeLayout.CENTER_IN_PARENT);
-        ViewGroup.LayoutParams ll_lp = ll.getLayoutParams();
-        ll_lp.width=screen_width/2;
-        ll_lp.height=play_height;
-        ll.setLayoutParams(ll_lp);
-
-        if(play__direction == SLIDE_LEFT){
-            ll.setBackgroundColor(playColors[SLIDE_LEFT]);
-            seek_lp.width = screen_width/2;
-            seek_lp.height = seekWidth;
-            seekBar.setLayoutParams(seek_lp);
-            //ll.setPadding(0,play_height/2,0,0);
-        }else if(play__direction==SLIDE_RIGHT){
-            ll.setBackgroundColor(playColors[SLIDE_RIGHT]);
-            seek_lp.width = screen_width/2;
-            seek_lp.height = seekWidth;
-            seekBar.setLayoutParams(seek_lp);
-            //ll.setPadding(0,play_height/2,0,0);
-        }else if(play__direction == SLIDE_UP){//rotate
-            ll.setBackgroundColor(playColors[SLIDE_UP]);
-            seek_lp.width = screen_width/2;
-            seek_lp.height = seekWidth;
-            //seekBar.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        }else if(play__direction == SLIDE_DOWN){//rotate
-            ll.setBackgroundColor(playColors[SLIDE_DOWN]);
-            seek_lp.width = screen_width/2;
-            seek_lp.height = seekWidth;
-            //seek_lp =new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-
-            seekBar.setLayoutParams(seek_lp);
-        }
-
-
-
-
-
-        //currentPlayLayout.addView(seekBar);
-        //ViewGroup.LayoutParams layoutParams = seekBar.getLayoutParams();
-        //layoutParams.width = screen_width/2;
-        //layoutParams.height = play_height;
-        //seekBar.setLayoutParams(layoutParams);
-
-
-
-
-
-
-
-        int startedOn = 50;
-        final int thisPlay = play__direction;
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        button.setOnTouchListener(new View.OnTouchListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                switch (motionEvent.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        //save starting location of view x and y
+                        startXY[0]=(int)view.getX();
+                        startXY[1]=(int)view.getY();
+                        dX[0] = view.getX() - motionEvent.getRawX();
+                        dY[0] = view.getY() - motionEvent.getRawY();
 
-            }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                //don't need
+                        break;
+                    case MotionEvent.ACTION_MOVE:
+                        view.animate()
+                                .x(motionEvent.getRawX() + dX[0])
+                                .y(motionEvent.getRawY() + dY[0])
+                                .setDuration(0)
+                                .start();
+                        break;
+                    case MotionEvent.ACTION_UP:
+                        //get xy of view difference, how far it moved since finger was put down
+                        int[] difXY = new int[]{startXY[0]-(int)view.getX(),startXY[1]-(int)view.getY()};
+                        int xdif = difXY[0],ydif = difXY[1];
+                        toast(null,"swipe " + xdif);
+                        if(play__direction == play &&play__direction==SLIDE_RIGHT && xdif < swipeThreshhold){
 
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-                if(thisPlay == play &&thisPlay==SLIDE_RIGHT && seekBar.getProgress() > startedOn){
-                    toast(seekBar,"slide " + thisPlay);
-                    correctAnswer();
-                } else if(thisPlay == play &&thisPlay==SLIDE_UP && seekBar.getProgress() > startedOn){
-                    toast(seekBar,"slide " + thisPlay);
-                    correctAnswer();
-                } else if(thisPlay == play &&thisPlay==SLIDE_LEFT && seekBar.getProgress() < startedOn){
-                    toast(seekBar,"slide " + thisPlay);
-                    correctAnswer();
-                } else if(thisPlay == play &&thisPlay==SLIDE_DOWN && seekBar.getProgress() < startedOn){
-                    toast(seekBar,"slide " + thisPlay);
-                    correctAnswer();
-                }else{
-                    wrongAnswer();
+                            correctAnswer();
+                        } else if(play__direction == play &&play__direction==SLIDE_UP && ydif > swipeThreshhold){
+                            //toast(seekBar,"slide " + play__direction);
+                            correctAnswer();
+                        } else if(play__direction == play &&play__direction==SLIDE_LEFT && xdif > swipeThreshhold){
+                            //toast(seekBar,"slide " + play__direction);
+                            correctAnswer();
+                        } else if(play__direction == play &&play__direction==SLIDE_DOWN && ydif < swipeThreshhold){
+                            //toast(seekBar,"slide " + thisPlay);
+                            correctAnswer();
+                        }else{
+                            wrongAnswer();
+                        }
+                    default:
+                        return false;
                 }
-
+                return true;
             }
         });
 
-
     }
+
+
 
 
 
@@ -554,6 +481,7 @@ TextView instruction;
 
             }
         });
+
 
 
 
@@ -800,7 +728,8 @@ TextView instruction;
                 }else if(key == HOLD){
                     addHoldit();
                 }else if(key == SLIDE_LEFT || key == SLIDE_RIGHT || key == SLIDE_UP || key == SLIDE_DOWN){
-                    addPlaySlide(play);
+                    //addPlaySlide(play);
+                    swipe(play);
                 }else if(key == BLOCK){
                     addPlayBlock();
                 }

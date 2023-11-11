@@ -2,6 +2,8 @@ package com.example.myapplication;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ContentResolver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.graphics.Color;
@@ -11,6 +13,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -31,6 +34,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.AnyRes;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -45,7 +49,7 @@ import com.google.android.gms.ads.initialization.OnInitializationCompleteListene
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 
-import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
@@ -64,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     final boolean fail_for_block_when_not_correct_play = true;// some might find that annoying,
     // deffinatly could be issue for shake or tilt / acidentaly tilting phone while plying  (maybey check if its even on the board?)
     static final int swipeThreshhold = 100;
+    MediaPlayer mp;
     final int [] playColors = new int[]{
             Color.rgb(106,0,128),
             Color.rgb(51,0,77),
@@ -83,6 +88,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     volatile static int play = 0;
     static Handler handler;
     static Button start;
+    static LinearLayout iconHorizontalLayout;
     int uiReactionDelay = 150;
     public static final int TAP=0,SWITCH=1,HOLD=2,BLOCK=3,SLIDE_RIGHT=4,SLIDE_LEFT=5,SLIDE_UP=6,SLIDE_DOWN=7,SHAKE=8;
     public static ImageView playImageView;
@@ -163,6 +169,7 @@ TextView instruction;
         playImageView = (ImageView) findViewById(R.id.playImageView);
         toaster = new Toast(this);
         start = findViewById(R.id.start);
+
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
         scoreTV = (TextView)findViewById(R.id.scoretv) ;
@@ -235,6 +242,7 @@ TextView instruction;
         setupTextToSpeech();
         super.onCreate(savedInstanceState);
     }
+
     public void setupTextToSpeech(){
         textToSpeech = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
             @Override
@@ -281,7 +289,7 @@ TextView instruction;
 
 
     public void say(String text){
-        textToSpeech.speak(text,TextToSpeech.QUEUE_ADD,null);
+        textToSpeech.speak(text,TextToSpeech.QUEUE_FLUSH,null);
     }
 
 
@@ -617,10 +625,27 @@ TextView instruction;
         }
 
     }
+    public static Uri getUriToResource(@NonNull Context context, @AnyRes int resId) throws Resources.NotFoundException {
+        Resources res = context.getResources();
 
+        Uri resUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE +
+                "://" + res.getResourcePackageName(resId)
+                + '/' + res.getResourceTypeName(resId)
+                + '/' + res.getResourceEntryName(resId));
+        return resUri;
+    }
     public void playAudio(String path, int RESOURCE){
         //set up MediaPlayer
-        MediaPlayer mp = MediaPlayer.create(this, RESOURCE);
+        if(mp!=null){
+            mp.reset();
+            try {
+                mp.setDataSource(this, Uri.parse(getUriToResource(this,RESOURCE).toString()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }else{
+            mp = MediaPlayer.create(this, RESOURCE);
+        }
         try {
             mp.prepare();
 
@@ -629,7 +654,8 @@ TextView instruction;
                 @Override
                 public void onCompletion(MediaPlayer mp) {
                     // TODO Auto-generated method stub
-                    mp.release();
+
+
                 }
 
             });

@@ -10,6 +10,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -44,6 +45,7 @@ import com.google.android.gms.ads.initialization.OnInitializationCompleteListene
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
@@ -61,7 +63,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     volatile ShakeDetector shakeDetector;
     final boolean fail_for_block_when_not_correct_play = true;// some might find that annoying,
     // deffinatly could be issue for shake or tilt / acidentaly tilting phone while plying  (maybey check if its even on the board?)
-    static final int swipeThreshhold = 35;
+    static final int swipeThreshhold = 100;
     final int [] playColors = new int[]{
             Color.rgb(106,0,128),
             Color.rgb(51,0,77),
@@ -93,6 +95,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     TextView scoreTV,livesTV;
 
 
+
 Toast toaster;
 TextView instruction;
  LinearLayout currentPlayLayout;
@@ -111,6 +114,8 @@ TextView instruction;
     private float mAccel; // acceleration apart from gravity
     private float mAccelCurrent; // current acceleration including gravity
     private float mAccelLast; // last acceleration including gravity
+
+    public int[] sounds;
 
 
 
@@ -168,7 +173,7 @@ TextView instruction;
             @Override
             public void onClick(View view) {
                 //don't increment score, just start game.....
-
+                scoreTV.setText("000");
                 changeLive(RESET);
                 nextPlay();
                 start.setVisibility(View.GONE);
@@ -191,7 +196,7 @@ TextView instruction;
         drawables_used_for_play_cards = new Drawable[]
                 {getResources().getDrawable(R.drawable.tap),//
                         getResources().getDrawable(R.drawable.sswitch),
-                        getResources().getDrawable(R.drawable.handshake),
+                        getResources().getDrawable(R.drawable.hold),
                         getResources().getDrawable(R.drawable.block),
                         getResources().getDrawable(R.drawable.right),//r
                         getResources().getDrawable(R.drawable.left),//l
@@ -202,14 +207,35 @@ TextView instruction;
         drawables_used_for_play_image_view = new Drawable[]
                 {getResources().getDrawable(R.drawable.tap),
                         getResources().getDrawable(R.drawable.sswitch),
-                        getResources().getDrawable(R.drawable.handshake),
+                        getResources().getDrawable(R.drawable.hold),
                         getResources().getDrawable(R.drawable.block),
                         getResources().getDrawable(R.drawable.right),
                         getResources().getDrawable(R.drawable.left),
                         getResources().getDrawable(R.drawable.actual_up_arrow),
                         getResources().getDrawable(R.drawable.actual_down_arrow),
                         getResources().getDrawable(R.drawable.shake)};
+        //used to get what sound to play for playTiles in correctAnswer
+        sounds = new int[]{
+            R.raw.abrupt60pluck1000,
+                R.raw.abrupt61pluck1000,
+                R.raw.abrupt62pluck1000,
+                R.raw.abrupt63pluck1000,
+                R.raw.abrupt64pluck1000,
+                R.raw.abrupt65pluck1000,
+                R.raw.abrupt66pluck1000,
+                R.raw.abrupt67pluck1000,
+                R.raw.abrupt68pluck1000,
+                R.raw.abrupt69pluck1000,
 
+
+        };
+
+
+        removePlays();
+        setupTextToSpeech();
+        super.onCreate(savedInstanceState);
+    }
+    public void setupTextToSpeech(){
         textToSpeech = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int i) {
@@ -221,8 +247,6 @@ TextView instruction;
                 }
             }
         });
-        removePlays();
-        super.onCreate(savedInstanceState);
     }
 
     @Override
@@ -566,34 +590,52 @@ TextView instruction;
             }
         });
         //sswitch.setBackgroundColor(Color.GRAY);
-
     }
     public void correctAnswer(){
         //increment score
-        say(isGameOverBool.get()+"");
         if(!isGameOverBool.get()){
-
+            playAudio("",sounds[play]);
             int score = Integer.parseInt(scoreTV.getText().toString());
             score = score + scoreIncrement;
             scoreTV.setText(score+"");
+            pointAnimation(score+"");
             //next play
             nextPlay();
+        }
+    }
+    public void pointAnimation(String points){
+        //TODO make an animation of points floation into the screen
+    }
+
+    public void wrongAnswer(){
+        if(!isGameOverBool.get()){
+            stopBlockImageAnimatedSignal();
+            say("Wrong!");
+            int score = Integer.parseInt(scoreTV.getText().toString());
+            changeLive(-1);
         }
 
     }
 
-    public void wrongAnswer(){
+    public void playAudio(String path, int RESOURCE){
+        //set up MediaPlayer
+        MediaPlayer mp = MediaPlayer.create(this, RESOURCE);
+        try {
+            mp.prepare();
 
-        if(!isGameOverBool.get()){
-            stopBlockImageAnimatedSignal();
-            say("Wrong!");
+            mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
 
-            int score = Integer.parseInt(scoreTV.getText().toString());
+                @Override
+                public void onCompletion(MediaPlayer mp) {
+                    // TODO Auto-generated method stub
+                    mp.release();
+                }
 
-
-            changeLive(-1);
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
+        mp.start();
     }
 
 //...
@@ -601,7 +643,6 @@ TextView instruction;
         currentPlayLayout.removeAllViews();
         //animateRemoveView(currentPlayLayout.getChildAt(0));
     }
-
     public void animateRemoveView(View v){
         
         // Create an animation instance
@@ -832,15 +873,16 @@ TextView instruction;
                 over=true;
 
             }else{
+                playAudio("",R.raw.wrong);
                 livesTV.setText(String.valueOf( i   ));
                 nextPlay();
             }
 
         }
         if(over){
-            textToSpeech.speak("Game Over!",TextToSpeech.QUEUE_FLUSH,null);
+            say("Game Over!");
             //end game
-
+            playAudio("",R.raw.gameover);
             showGameoverDialog();
 
         }else{
@@ -854,16 +896,17 @@ TextView instruction;
 
     public void showGameoverDialog(){
         isGameOverBool.set(true);
+        animateRemoveAllViews();
         gameOverAlertDialog =
                 new AlertDialog.Builder(this)
                         .setTitle("Game Over!")
                         .setMessage(scoreTV.getText().toString()+"").setOnDismissListener(new DialogInterface.OnDismissListener(){
                             @Override
                             public void onDismiss(DialogInterface dialogInterface) {
-
-                                scoreTV.setText("000");
+                                interstitialAd();
                                 animateRemoveAllViews();
                                 start.setVisibility(View.VISIBLE);
+
                             }
                         })
                         // Specifying a listener allows you to take an action before dismissing the dialog.
@@ -871,10 +914,9 @@ TextView instruction;
                         .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int which) {
                                 // Continue with delete operation
-
-                                scoreTV.setText("000");
                                 animateRemoveAllViews();
                                 start.setVisibility(View.VISIBLE);
+                                interstitialAd();
 
                             }
                         })
@@ -884,7 +926,7 @@ TextView instruction;
 
 
 
-    public void istAd(){
+    public void interstitialAd(){
 
         if(mInterstitialAd!=null) mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback(){
             @Override
@@ -932,6 +974,7 @@ TextView instruction;
             toast(null,"The interstitial ad wasn't ready yet.");
         }
     }
+
 
 
 }

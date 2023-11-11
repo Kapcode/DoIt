@@ -49,9 +49,12 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.OptionalInt;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener , ShakeDetector.Listener {
     static final int scoreIncrement = 25;
+    volatile AtomicBoolean isGameOverBool = new AtomicBoolean(true);//NEEDS TO BE VOLITILE!
+    static AlertDialog.Builder gameOverAlertDialog;
    volatile ShakeDetector.Listener listener_ShakeDetector;
     volatile SensorEventListener sensorEventListener;
     volatile Thread shakeThread = null,blockThread=null;
@@ -114,28 +117,21 @@ TextView instruction;
     @Override
     public void onSensorChanged(SensorEvent event) {
 
-
-
-
-
-
-
-
-
         float maxRange = mSensor.getMaximumRange();
         if(maxRange == event.values[0]) {
         // Do something when something is far away.
         }
         else {// Do something when something is near.
             if(start.getVisibility() == View.GONE){// don't start game or talk with sensor
-                if( play==BLOCK){
+                if(play==BLOCK){
                     //correct
                     toast(null,"BLOCK");
                     correctAnswer();
                 }else if(fail_for_block_when_not_correct_play){
                     wrongAnswer();
                 }else{
-
+                    stopDetectingBlock();
+                    say("game is over stopping block dettection");
                 }
             }
 
@@ -172,9 +168,12 @@ TextView instruction;
             @Override
             public void onClick(View view) {
                 //don't increment score, just start game.....
+
                 changeLive(RESET);
                 nextPlay();
                 start.setVisibility(View.GONE);
+                isGameOverBool.set(false);
+
             }
         });
         instruction = findViewById(R.id.instruction);
@@ -308,7 +307,7 @@ TextView instruction;
             @Override
             public void run() {
 
-                while(play==SHAKE){
+                while( play==SHAKE){
                     SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
                     if(shakeDetector==null)shakeDetector = new ShakeDetector(listener_ShakeDetector);
                     shakeDetector.start(sensorManager);
@@ -364,7 +363,7 @@ TextView instruction;
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(play==TAP){
+                if(play==TAP ){
                     //correct
                     toast(view,"TAP");
                     correctAnswer();
@@ -398,7 +397,7 @@ TextView instruction;
         button.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
-                if(play==HOLD){
+                if( play==HOLD){
                     toast(view,"HOLD");
                     correctAnswer();
                 }else{
@@ -410,7 +409,10 @@ TextView instruction;
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                wrongAnswer();
+
+                    wrongAnswer();
+
+
             }
         });
         currentPlayLayout.addView(button);
@@ -452,7 +454,7 @@ TextView instruction;
                         int[] difXY = new int[]{startXY[0]-(int)view.getX(),startXY[1]-(int)view.getY()};
                         int xdif = difXY[0],ydif = difXY[1];
                         toast(null,"swipe " + xdif);
-                        if(play__direction == play &&play__direction==SLIDE_RIGHT && xdif < swipeThreshhold){
+                        if( play__direction == play &&play__direction==SLIDE_RIGHT && xdif < swipeThreshhold){
 
                             correctAnswer();
                         } else if(play__direction == play &&play__direction==SLIDE_UP && ydif > swipeThreshhold){
@@ -568,23 +570,29 @@ TextView instruction;
     }
     public void correctAnswer(){
         //increment score
-        int score = Integer.parseInt(scoreTV.getText().toString());
-        score = score + scoreIncrement;
-        scoreTV.setText(score+"");
-        //next play
-        nextPlay();
+        say(isGameOverBool.get()+"");
+        if(!isGameOverBool.get()){
+
+            int score = Integer.parseInt(scoreTV.getText().toString());
+            score = score + scoreIncrement;
+            scoreTV.setText(score+"");
+            //next play
+            nextPlay();
+        }
+
     }
 
-    public synchronized void wrongAnswer(){
-        stopBlockImageAnimatedSignal();
-        say("Wrong!");
+    public void wrongAnswer(){
 
-        int score = Integer.parseInt(scoreTV.getText().toString());
+        if(!isGameOverBool.get()){
+            stopBlockImageAnimatedSignal();
+            say("Wrong!");
+
+            int score = Integer.parseInt(scoreTV.getText().toString());
 
 
-        changeLive(-1);
-
-
+            changeLive(-1);
+        }
 
     }
 
@@ -715,7 +723,7 @@ TextView instruction;
         button.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
-                wrongAnswer();
+               wrongAnswer();
                 return true;//return true or error!
             }
         });
@@ -832,69 +840,9 @@ TextView instruction;
         if(over){
             textToSpeech.speak("Game Over!",TextToSpeech.QUEUE_FLUSH,null);
             //end game
-            new AlertDialog.Builder(this)
-                    .setTitle("Game Over!")
-                    .setMessage(scoreTV.getText().toString()+"")
-                    // Specifying a listener allows you to take an action before dismissing the dialog.
-                    // The dialog is automatically dismissed when a dialog button is clicked.
-                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            // Continue with delete operation
-                            scoreTV.setText("000");
-                            animateRemoveAllViews();
-                            start.setVisibility(View.VISIBLE);
 
+            showGameoverDialog();
 
-
-                            if(mInterstitialAd!=null) mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback(){
-                                @Override
-                                public void onAdClicked() {
-                                    // Called when a click is recorded for an ad.
-                                    Toast.makeText(MainActivity.this, "Ad was clicked.", Toast.LENGTH_SHORT).show();
-
-                                }
-
-                                @Override
-                                public void onAdDismissedFullScreenContent() {
-                                    // Called when ad is dismissed.
-                                    // Set the ad reference to null so you don't show the ad a second time.
-                                    //Log.d(TAG, "Ad dismissed fullscreen content.");
-                                    Toast.makeText(MainActivity.this, "Ad dismissed fullscreen content.", Toast.LENGTH_SHORT).show();
-                                    mInterstitialAd = null;
-                                }
-
-                                @Override
-                                public void onAdFailedToShowFullScreenContent(AdError adError) {
-                                    // Called when ad fails to show.
-                                    //Log.e(TAG, "Ad failed to show fullscreen content.");
-                                    Toast.makeText(MainActivity.this, "Ad failed to show fullscreen content.", Toast.LENGTH_SHORT).show();
-                                    mInterstitialAd = null;
-                                }
-
-                                @Override
-                                public void onAdImpression() {
-                                    // Called when an impression is recorded for an ad.
-                                    //Log.d(TAG, "Ad recorded an impression.");
-                                    Toast.makeText(MainActivity.this, "Ad recorded an impression.", Toast.LENGTH_SHORT).show();
-                                }
-
-                                @Override
-                                public void onAdShowedFullScreenContent() {
-                                    // Called when ad is shown.
-                                    Toast.makeText(MainActivity.this, "Ad showed fullscreen content.", Toast.LENGTH_SHORT).show();
-                                    //Log.d(TAG, "Ad showed fullscreen content.");
-                                }
-                            });
-
-                            if (mInterstitialAd != null) {
-                                mInterstitialAd.show(activity);
-                            } else {
-                                toast(null,"The interstitial ad wasn't ready yet.");
-                            }
-                        }
-                    })
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
         }else{
            // nextPlay();
         }
@@ -902,8 +850,88 @@ TextView instruction;
     }
 
 
+    
+
+    public void showGameoverDialog(){
+        isGameOverBool.set(true);
+        gameOverAlertDialog =
+                new AlertDialog.Builder(this)
+                        .setTitle("Game Over!")
+                        .setMessage(scoreTV.getText().toString()+"").setOnDismissListener(new DialogInterface.OnDismissListener(){
+                            @Override
+                            public void onDismiss(DialogInterface dialogInterface) {
+
+                                scoreTV.setText("000");
+                                animateRemoveAllViews();
+                                start.setVisibility(View.VISIBLE);
+                            }
+                        })
+                        // Specifying a listener allows you to take an action before dismissing the dialog.
+                        // The dialog is automatically dismissed when a dialog button is clicked.
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                // Continue with delete operation
+
+                                scoreTV.setText("000");
+                                animateRemoveAllViews();
+                                start.setVisibility(View.VISIBLE);
+
+                            }
+                        })
+                        .setIcon(android.R.drawable.ic_dialog_alert);
+        gameOverAlertDialog.show();
+    }
 
 
+
+    public void istAd(){
+
+        if(mInterstitialAd!=null) mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback(){
+            @Override
+            public void onAdClicked() {
+                // Called when a click is recorded for an ad.
+                Toast.makeText(MainActivity.this, "Ad was clicked.", Toast.LENGTH_SHORT).show();
+
+            }
+
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                // Called when ad is dismissed.
+                // Set the ad reference to null so you don't show the ad a second time.
+                //Log.d(TAG, "Ad dismissed fullscreen content.");
+                Toast.makeText(MainActivity.this, "Ad dismissed fullscreen content.", Toast.LENGTH_SHORT).show();
+                mInterstitialAd = null;
+            }
+
+            @Override
+            public void onAdFailedToShowFullScreenContent(AdError adError) {
+                // Called when ad fails to show.
+                //Log.e(TAG, "Ad failed to show fullscreen content.");
+                Toast.makeText(MainActivity.this, "Ad failed to show fullscreen content.", Toast.LENGTH_SHORT).show();
+                mInterstitialAd = null;
+            }
+
+            @Override
+            public void onAdImpression() {
+                // Called when an impression is recorded for an ad.
+                //Log.d(TAG, "Ad recorded an impression.");
+                Toast.makeText(MainActivity.this, "Ad recorded an impression.", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdShowedFullScreenContent() {
+                // Called when ad is shown.
+                Toast.makeText(MainActivity.this, "Ad showed fullscreen content.", Toast.LENGTH_SHORT).show();
+                //Log.d(TAG, "Ad showed fullscreen content.");
+            }
+        });
+
+        if (mInterstitialAd != null) {
+            mInterstitialAd.show(activity);
+        } else {
+            toast(null,"The interstitial ad wasn't ready yet.");
+        }
+    }
 
 
 }

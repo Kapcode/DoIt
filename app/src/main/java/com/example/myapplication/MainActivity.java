@@ -21,7 +21,6 @@ import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
-import android.view.animation.TranslateAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -53,7 +52,10 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener , ShakeDetector.Listener {
     static final int scoreIncrement = 25;
-    ShakeDetector shakeDetector;
+   volatile ShakeDetector.Listener listener_ShakeDetector;
+    volatile SensorEventListener sensorEventListener;
+    volatile Thread shakeThread = null,blockThread=null;
+    volatile ShakeDetector shakeDetector;
     final boolean fail_for_block_when_not_correct_play = true;// some might find that annoying,
     // deffinatly could be issue for shake or tilt / acidentaly tilting phone while plying  (maybey check if its even on the board?)
     static final int swipeThreshhold = 35;
@@ -68,14 +70,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     Color.rgb(13,77,0),
     Color.rgb(204, 0, 102)};
 
-
-
     static final int seekWidth = 75;
     public static ImageView blockImageAnimatedSignal;
     static final int switchSeekWidth = seekWidth+20;
     static final int sliderHeight = 50;
     static Activity activity;
-    static int play = 0;
+    volatile static int play = 0;
     static Handler handler;
     static Button start;
     int uiReactionDelay = 150;
@@ -156,8 +156,8 @@ TextView instruction;
         loadAds();
 
 
-
-
+         listener_ShakeDetector=this;
+         sensorEventListener = this;
         currentPlayLayout = findViewById(R.id.playArea);
         playImageView = (ImageView) findViewById(R.id.playImageView);
         toaster = new Toast(this);
@@ -172,7 +172,7 @@ TextView instruction;
             @Override
             public void onClick(View view) {
                 //don't increment score, just start game.....
-                livesTV.setText("2");
+                changeLive(RESET);
                 nextPlay();
                 start.setVisibility(View.GONE);
             }
@@ -229,7 +229,10 @@ TextView instruction;
     @Override
     protected void onResume() {
         // Register a listener for the sensor.
+
         super.onResume();
+        if(play==BLOCK) startDetectingBlock();
+        if(play==SHAKE)startDetectingShake();
 
     }
     @Override
@@ -300,18 +303,41 @@ TextView instruction;
     public void startDetectingShake(){
         stopDetectingBlock();
         //shakeDetector.setSensitivity();//TODO
-        SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        if(shakeDetector==null)shakeDetector = new ShakeDetector(this);
-        shakeDetector.start(sensorManager);
+
+        shakeThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                while(play==SHAKE){
+                    SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+                    if(shakeDetector==null)shakeDetector = new ShakeDetector(listener_ShakeDetector);
+                    shakeDetector.start(sensorManager);
+                }
+
+            }
+        });
+        shakeThread.start();
     }
     public void stopDetectingShake(){
         if(shakeDetector!=null)shakeDetector.stop();//won't need null check after done creating shake Detection
     }
 
-    public void startDetectionBlock(){
+    public void startDetectingBlock(){
         stopDetectingShake();
-        mSensorManager.registerListener(this, mSensor,
-                SensorManager.SENSOR_DELAY_NORMAL);
+        blockThread =new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(play==BLOCK){
+                    mSensorManager.registerListener(sensorEventListener, mSensor,
+                            SensorManager.SENSOR_DELAY_NORMAL);
+                }
+
+            }
+        });
+        blockThread.start();
+
+
+
     }
 
     public void stopDetectingBlock(){
@@ -540,107 +566,24 @@ TextView instruction;
         //sswitch.setBackgroundColor(Color.GRAY);
 
     }
-
-
-
-
-
-
-
-
-
-
     public void correctAnswer(){
         //increment score
         int score = Integer.parseInt(scoreTV.getText().toString());
         score = score + scoreIncrement;
         scoreTV.setText(score+"");
         //next play
-
         nextPlay();
     }
 
-    public void wrongAnswer(){
+    public synchronized void wrongAnswer(){
         stopBlockImageAnimatedSignal();
         say("Wrong!");
 
         int score = Integer.parseInt(scoreTV.getText().toString());
 
 
-        int lives = Integer.parseInt(livesTV.getText().toString());
-        lives--;
-        livesTV.setText(String.valueOf(lives));
-        if(lives==0){
-            textToSpeech.speak("Game Over!",TextToSpeech.QUEUE_FLUSH,null);
-            //end game
-            new AlertDialog.Builder(this)
-                    .setTitle("Game Over!")
-                    .setMessage(score+"")
-                    // Specifying a listener allows you to take an action before dismissing the dialog.
-                    // The dialog is automatically dismissed when a dialog button is clicked.
-                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            // Continue with delete operation
-                            scoreTV.setText("000");
-                            animateRemoveAllViews();
-                            start.setVisibility(View.VISIBLE);
+        changeLive(-1);
 
-
-
-                           if(mInterstitialAd!=null) mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback(){
-                                @Override
-                                public void onAdClicked() {
-                                    // Called when a click is recorded for an ad.
-                                    Toast.makeText(MainActivity.this, "Ad was clicked.", Toast.LENGTH_SHORT).show();
-
-                                }
-
-                                @Override
-                                public void onAdDismissedFullScreenContent() {
-                                    // Called when ad is dismissed.
-                                    // Set the ad reference to null so you don't show the ad a second time.
-                                    //Log.d(TAG, "Ad dismissed fullscreen content.");
-                                    Toast.makeText(MainActivity.this, "Ad dismissed fullscreen content.", Toast.LENGTH_SHORT).show();
-                                    mInterstitialAd = null;
-                                }
-
-                                @Override
-                                public void onAdFailedToShowFullScreenContent(AdError adError) {
-                                    // Called when ad fails to show.
-                                    //Log.e(TAG, "Ad failed to show fullscreen content.");
-                                    Toast.makeText(MainActivity.this, "Ad failed to show fullscreen content.", Toast.LENGTH_SHORT).show();
-                                    mInterstitialAd = null;
-                                }
-
-                                @Override
-                                public void onAdImpression() {
-                                    // Called when an impression is recorded for an ad.
-                                    //Log.d(TAG, "Ad recorded an impression.");
-                                    Toast.makeText(MainActivity.this, "Ad recorded an impression.", Toast.LENGTH_SHORT).show();
-                                }
-
-                                @Override
-                                public void onAdShowedFullScreenContent() {
-                                    // Called when ad is shown.
-                                    Toast.makeText(MainActivity.this, "Ad showed fullscreen content.", Toast.LENGTH_SHORT).show();
-                                    //Log.d(TAG, "Ad showed fullscreen content.");
-                                }
-                            });
-
-                            if (mInterstitialAd != null) {
-                                mInterstitialAd.show(activity);
-                            } else {
-                                toast(null,"The interstitial ad wasn't ready yet.");
-                            }
-                        }
-                    })
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
-
-
-        }else{
-            nextPlay();
-        }
 
 
     }
@@ -699,7 +642,7 @@ TextView instruction;
         //add views
             currentPlayLayout.removeAllViews();
             play = getRandomWithExclusion(0,instructionTypes.size()-1,new int[]{});
-            
+
             String[] instructions = instructionTypes.get(play);
 
             instruction.setText(instructions[language]);
@@ -722,6 +665,8 @@ TextView instruction;
             }
             say(instruction.getText().toString());
             playImageView.setForeground(drawables_used_for_play_image_view[play]);
+            //
+        findViewById(R.id.topImage).setBackgroundColor(playColors[play]);
 
     }
 
@@ -748,6 +693,8 @@ TextView instruction;
         rl.setLayoutParams(rl_lp);
 
         startDetectingShake();
+
+
     }
 
 
@@ -782,7 +729,12 @@ TextView instruction;
         if(play==BLOCK){
             startBlockImageAnimatedSignal();
         }
-        startDetectionBlock();
+        startDetectingBlock();
+
+
+
+
+
 
     }
 
@@ -846,7 +798,7 @@ TextView instruction;
     }
 
     @Override
-    public void hearShake() {
+    public void hearShake() {//todo
         System.out.println("SHOOK!");
         if(play == SHAKE){
             correctAnswer();
@@ -858,6 +810,96 @@ TextView instruction;
         shake it (shake phone)
         squeeze
      */
+    static final int RESET = -99;
+    static final int STARTING_LIVES = 2;
+    public synchronized void changeLive(int offset){
+        boolean over = false;
+        if(offset==RESET){//restart game
+            livesTV.setText(""+STARTING_LIVES);
+            //over=true;
+        }else{
+            int oldValue = Integer.parseInt(livesTV.getText().toString());
+            int i = oldValue + offset;
+            if(i == 0){
+                over=true;
+
+            }else{
+                livesTV.setText(String.valueOf( i   ));
+                nextPlay();
+            }
+
+        }
+        if(over){
+            textToSpeech.speak("Game Over!",TextToSpeech.QUEUE_FLUSH,null);
+            //end game
+            new AlertDialog.Builder(this)
+                    .setTitle("Game Over!")
+                    .setMessage(scoreTV.getText().toString()+"")
+                    // Specifying a listener allows you to take an action before dismissing the dialog.
+                    // The dialog is automatically dismissed when a dialog button is clicked.
+                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            // Continue with delete operation
+                            scoreTV.setText("000");
+                            animateRemoveAllViews();
+                            start.setVisibility(View.VISIBLE);
+
+
+
+                            if(mInterstitialAd!=null) mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback(){
+                                @Override
+                                public void onAdClicked() {
+                                    // Called when a click is recorded for an ad.
+                                    Toast.makeText(MainActivity.this, "Ad was clicked.", Toast.LENGTH_SHORT).show();
+
+                                }
+
+                                @Override
+                                public void onAdDismissedFullScreenContent() {
+                                    // Called when ad is dismissed.
+                                    // Set the ad reference to null so you don't show the ad a second time.
+                                    //Log.d(TAG, "Ad dismissed fullscreen content.");
+                                    Toast.makeText(MainActivity.this, "Ad dismissed fullscreen content.", Toast.LENGTH_SHORT).show();
+                                    mInterstitialAd = null;
+                                }
+
+                                @Override
+                                public void onAdFailedToShowFullScreenContent(AdError adError) {
+                                    // Called when ad fails to show.
+                                    //Log.e(TAG, "Ad failed to show fullscreen content.");
+                                    Toast.makeText(MainActivity.this, "Ad failed to show fullscreen content.", Toast.LENGTH_SHORT).show();
+                                    mInterstitialAd = null;
+                                }
+
+                                @Override
+                                public void onAdImpression() {
+                                    // Called when an impression is recorded for an ad.
+                                    //Log.d(TAG, "Ad recorded an impression.");
+                                    Toast.makeText(MainActivity.this, "Ad recorded an impression.", Toast.LENGTH_SHORT).show();
+                                }
+
+                                @Override
+                                public void onAdShowedFullScreenContent() {
+                                    // Called when ad is shown.
+                                    Toast.makeText(MainActivity.this, "Ad showed fullscreen content.", Toast.LENGTH_SHORT).show();
+                                    //Log.d(TAG, "Ad showed fullscreen content.");
+                                }
+                            });
+
+                            if (mInterstitialAd != null) {
+                                mInterstitialAd.show(activity);
+                            } else {
+                                toast(null,"The interstitial ad wasn't ready yet.");
+                            }
+                        }
+                    })
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
+        }else{
+           // nextPlay();
+        }
+
+    }
 
 
 

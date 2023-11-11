@@ -325,7 +325,7 @@ TextView instruction;
 
     public void startDetectingShake(){
         stopDetectingBlock();
-        //shakeDetector.setSensitivity();//TODO
+
 
         shakeThread = new Thread(new Runnable() {
             @Override
@@ -334,6 +334,7 @@ TextView instruction;
                 while( play==SHAKE){
                     SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
                     if(shakeDetector==null)shakeDetector = new ShakeDetector(listener_ShakeDetector);
+                    shakeDetector.setSensitivity(ShakeDetector.SENSITIVITY_LIGHT);
                     shakeDetector.start(sensorManager);
                 }
 
@@ -974,6 +975,8 @@ TextView instruction;
             toast(null,"The interstitial ad wasn't ready yet.");
         }
     }
+
+
 
 
 

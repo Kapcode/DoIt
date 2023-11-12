@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package com.kapcode.slideit;
 
 import android.app.Activity;
 import android.app.AlertDialog;

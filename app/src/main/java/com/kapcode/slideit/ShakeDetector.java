@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package com.kapcode.slideit;
 
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;

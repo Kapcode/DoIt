@@ -963,7 +963,6 @@ TextView instruction;
 
     /*
     ideas
-        shake it (shake phone)
         squeeze
      */
     static final int RESET = -99;

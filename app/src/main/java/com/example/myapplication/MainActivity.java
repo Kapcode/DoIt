@@ -25,6 +25,7 @@ import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
+import android.view.animation.TranslateAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -58,7 +59,9 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener , ShakeDetector.Listener {
+    int animatiotionDuration = 1500;
     static final int scoreIncrement = 25;
+    Drawable pointsDrawable_to_Mutate, minusLivesDrawable_to_Mutate;
     volatile AtomicBoolean isGameOverBool = new AtomicBoolean(true);//NEEDS TO BE VOLITILE!
     static AlertDialog.Builder gameOverAlertDialog;
    volatile ShakeDetector.Listener listener_ShakeDetector;
@@ -136,7 +139,7 @@ TextView instruction;
             if(start.getVisibility() == View.GONE){// don't start game or talk with sensor
                 if(play==BLOCK){
                     //correct
-                    toast(null,"BLOCK");
+
                     correctAnswer();
                 }else if(fail_for_block_when_not_correct_play){
                     wrongAnswer();
@@ -159,10 +162,10 @@ TextView instruction;
     protected void onCreate(Bundle savedInstanceState) {
         setContentView(R.layout.activity_main);
         activity=this;
-        //TODO
+
         loadAds();
-
-
+        pointsDrawable_to_Mutate = getResources().getDrawable(R.drawable.points);
+        minusLivesDrawable_to_Mutate = getResources().getDrawable(R.drawable.minus_life);
          listener_ShakeDetector=this;
          sensorEventListener = this;
         currentPlayLayout = findViewById(R.id.playArea);
@@ -273,12 +276,6 @@ TextView instruction;
         stopDetectingBlock();
         stopDetectingShake();
     }
-    public void toast(View v,String s){
-        cancel();
-        toaster=new Toast(this);
-        toaster.setText(s);
-        toaster.show();
-    }
     public void cancel(){
         toaster.cancel();
     }
@@ -286,8 +283,6 @@ TextView instruction;
     public void removePlays(){
         currentPlayLayout.removeAllViews();
     };
-
-
     public void say(String text){
         textToSpeech.speak(text,TextToSpeech.QUEUE_FLUSH,null);
     }
@@ -398,7 +393,7 @@ TextView instruction;
             public void onClick(View view) {
                 if(play==TAP ){
                     //correct
-                    toast(view,"TAP");
+
                     correctAnswer();
                 }else{
                     wrongAnswer();
@@ -431,7 +426,7 @@ TextView instruction;
             @Override
             public boolean onLongClick(View view) {
                 if( play==HOLD){
-                    toast(view,"HOLD");
+
                     correctAnswer();
                 }else{
                     wrongAnswer();
@@ -486,7 +481,7 @@ TextView instruction;
                         //get xy of view difference, how far it moved since finger was put down
                         int[] difXY = new int[]{startXY[0]-(int)view.getX(),startXY[1]-(int)view.getY()};
                         int xdif = difXY[0],ydif = difXY[1];
-                        toast(null,"swipe " + xdif);
+
                         if( play__direction == play &&play__direction==SLIDE_RIGHT && xdif < swipeThreshhold){
 
                             correctAnswer();
@@ -590,7 +585,7 @@ TextView instruction;
             public void onStopTrackingTouch(SeekBar seekBar) {
 
                 if(play==SWITCH){
-                    toast(seekBar,"slide " + play);
+
                     correctAnswer();
                 }else{
                     wrongAnswer();
@@ -607,16 +602,103 @@ TextView instruction;
             int score = Integer.parseInt(scoreTV.getText().toString());
             score = score + scoreIncrement;
             scoreTV.setText(score+"");
-            pointAnimation(score+"");
+            pointAnimation();//uses scoreIncrement constant
             //next play
             nextPlay();
         }
     }
-    public void pointAnimation(String points){
-        //TODO make an animation of points floation into the screen
+    public void pointAnimation(){
+        ViewGroup root = (ViewGroup) findViewById(R.id.root);
+        final LinearLayout[] pointsAnimLayout = {new LinearLayout(this)};
+        pointsAnimLayout[0].setAlpha(.5f);
+        ImageView pointsAnimImageView = new ImageView(this);
+        pointsAnimImageView.setForeground(pointsDrawable_to_Mutate.mutate());
+        pointsAnimImageView.setMinimumWidth(100);
+        pointsAnimImageView.setMinimumHeight(100);
+        TextView pointsAnimTV = new TextView(this);
+        pointsAnimTV.setText(""+scoreIncrement);
+        pointsAnimTV.setTextSize(25);
+        pointsAnimLayout[0].addView(pointsAnimImageView);
+        pointsAnimLayout[0].addView(pointsAnimTV);
+        root.addView(pointsAnimLayout[0]);
+        TranslateAnimation animation = new TranslateAnimation((screen_width/2)-50, 20, 500, 0);
+
+        animation.setDuration(animatiotionDuration); // animation duration
+
+        //animation.setRepeatCount(5); // animation repeat count
+        //animation.setRepeatMode(2);
+        // left )
+         animation.setFillAfter(false);
+         animation.setAnimationListener(new Animation.AnimationListener() {
+             @Override
+             public void onAnimationStart(Animation animation) {
+
+             }
+             @Override
+             public void onAnimationEnd(Animation animation) {
+                root.removeView(pointsAnimLayout[0]);
+                 pointsAnimLayout[0] =null;
+             }
+
+             @Override
+             public void onAnimationRepeat(Animation animation) {
+
+             }
+         });
+
+        pointsAnimLayout[0].startAnimation(animation);
+
+        //pointsAnimLayout.animate().setDuration().
+
+    }
+
+
+
+    public void lifesAnimation(){
+        ViewGroup root = (ViewGroup) findViewById(R.id.root);
+        final LinearLayout[] lifesAnimLayout = {new LinearLayout(this)};
+        lifesAnimLayout[0].setAlpha(.5f);
+        ImageView lifesAnimImageView = new ImageView(this);
+        lifesAnimImageView.setForeground(minusLivesDrawable_to_Mutate.mutate());
+        lifesAnimImageView.setMinimumWidth(100);
+        lifesAnimImageView.setMinimumHeight(100);
+        TextView lifesAnimTV = new TextView(this);
+        lifesAnimTV.setText("");
+        lifesAnimTV.setTextSize(25);
+        lifesAnimLayout[0].addView(lifesAnimImageView);
+        lifesAnimLayout[0].addView(lifesAnimTV);
+        root.addView(lifesAnimLayout[0]);
+        TranslateAnimation animation = new TranslateAnimation((screen_width/2)-100, screen_width-100, 500, 0);
+        animation.setDuration(animatiotionDuration); // animation duration
+        //animation.setRepeatCount(5); // animation repeat count
+        //animation.setRepeatMode(2);
+        // left )
+        animation.setFillAfter(false);
+        animation.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {
+
+            }
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                root.removeView(lifesAnimLayout[0]);
+                lifesAnimLayout[0] =null;
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {
+
+            }
+        });
+
+        lifesAnimLayout[0].startAnimation(animation);
+
+        //lifesAnimLayout.animate().setDuration().
+
     }
 
     public void wrongAnswer(){
+        lifesAnimation();
         if(!isGameOverBool.get()){
             stopBlockImageAnimatedSignal();
             say("Wrong!");
@@ -653,8 +735,6 @@ TextView instruction;
 
                 @Override
                 public void onCompletion(MediaPlayer mp) {
-                    // TODO Auto-generated method stub
-
 
                 }
 
@@ -874,11 +954,11 @@ TextView instruction;
     }
 
     @Override
-    public void hearShake() {//todo
+    public void hearShake() {
         System.out.println("SHOOK!");
         if(play == SHAKE){
             correctAnswer();
-        }//TODO catch a wrong answer if in play!
+        }
     }
 
     /*
@@ -898,7 +978,7 @@ TextView instruction;
             int i = oldValue + offset;
             if(i == 0){
                 over=true;
-
+                livesTV.setText("0");
             }else{
                 playAudio("",R.raw.wrong);
                 livesTV.setText(String.valueOf( i   ));
@@ -922,6 +1002,7 @@ TextView instruction;
     
 
     public void showGameoverDialog(){
+
         isGameOverBool.set(true);
         animateRemoveAllViews();
         gameOverAlertDialog =
@@ -998,7 +1079,7 @@ TextView instruction;
         if (mInterstitialAd != null) {
             mInterstitialAd.show(activity);
         } else {
-            toast(null,"The interstitial ad wasn't ready yet.");
+
         }
     }
 

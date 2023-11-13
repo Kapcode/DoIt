@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -59,9 +60,10 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 public class MainActivity extends AppCompatActivity implements SensorEventListener , ShakeDetector.Listener {
     int animatiotionDuration = 1500;
+
     String real_interstitial_id = "ca-app-pub-2579373758747951/8770619492";
     String test_interstitial_id = "ca-app-pub-3940256099942544/1033173712";
-    String interstitial_id = test_interstitial_id;
+    String interstitial_id = real_interstitial_id;
     static final int scoreIncrement = 25;
     Drawable pointsDrawable_to_Mutate, minusLivesDrawable_to_Mutate;
     volatile AtomicBoolean isGameOverBool = new AtomicBoolean(true);
@@ -78,12 +80,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             Color.rgb(106,0,128),
             Color.rgb(51,0,77),
             Color.rgb(34,0,102),
-    Color.rgb(0,84,77),
+            Color.rgb(204, 0, 102),
     Color.rgb(10,64,77),
     Color.rgb(102,0,34),
     Color.rgb(102,34,0),
     Color.rgb(13,77,0),
-    Color.rgb(204, 0, 102)};
+    Color.rgb(0,84,77)};
 
     static final int seekWidth = 75;
     public static ImageView blockImageAnimatedSignal;
@@ -96,13 +98,23 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     static ImageView start;
     static LinearLayout iconHorizontalLayout;
     int uiReactionDelay = 150;
-    public static final int TAP=0,SWITCH=1,HOLD=2,BLOCK=3,SLIDE_RIGHT=4,SLIDE_LEFT=5,SLIDE_UP=6,SLIDE_DOWN=7,SHAKE=8;
+    public static final int TAP=0,SWITCH=1,HOLD=2,BLOCK=8,SLIDE_RIGHT=4,SLIDE_LEFT=5,SLIDE_UP=6,SLIDE_DOWN=7,SHAKE=3;
     public static ImageView playImageView;
     public static final int ENGLISH = 0;
     public static final int SPANISH = 1;
     public static int language = ENGLISH;
     public static TextToSpeech textToSpeech;
     HashMap <Integer,String[]> instructionTypes = new HashMap<Integer,String[]>();
+    HashMap <Integer,String[]> currentGameModeInstrcutionTypesMap = new HashMap<Integer,String[]>();
+    public static final int DEFAULT=0,SLIDE_ONLY = 1,NO_BLOCK=2,NO_SHAKE=3,NO_SHAKE_NO_BLOCK=4;
+    HashMap <Integer,String[]> SlideOnlyGameModeInstrcutionTypesMap = new HashMap<Integer,String[]>();
+
+    HashMap <Integer,String[]> NoBlockGameModeInstrcutionTypesMap = new HashMap<Integer,String[]>();
+
+    HashMap <Integer,String[]> NoShakeGameModeInstrcutionTypesMap = new HashMap<Integer,String[]>();
+
+    HashMap <Integer,String[]> NoShakeBlockGameModeInstrcutionTypesMap = new HashMap<Integer,String[]>();
+
     Drawable[] drawables_used_for_play_cards, drawables_used_for_play_image_view;
     TextView scoreTV,livesTV;
 Toast toaster;
@@ -139,7 +151,6 @@ TextView instruction;
             if(start.getVisibility() == View.GONE){// don't start game or talk with sensor
                 if(play==BLOCK){
                     //correct
-
                     correctAnswer();
                     stopDetectingBlock();
                 }else if(fail_for_block_when_not_correct_play){
@@ -156,6 +167,64 @@ TextView instruction;
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
+    }
+
+
+    public void setGameMode(int GAME_MODE){
+        switch (GAME_MODE){
+            case DEFAULT:{
+                currentGameModeInstrcutionTypesMap = instructionTypes;
+                break;
+            }
+            case SLIDE_ONLY:{
+                currentGameModeInstrcutionTypesMap = SlideOnlyGameModeInstrcutionTypesMap;
+                break;
+            }
+            case NO_BLOCK:{
+                currentGameModeInstrcutionTypesMap = NoBlockGameModeInstrcutionTypesMap;
+                break;
+            }
+            case NO_SHAKE:{
+                currentGameModeInstrcutionTypesMap = NoShakeGameModeInstrcutionTypesMap;
+                break;
+            }
+            case NO_SHAKE_NO_BLOCK:{
+                currentGameModeInstrcutionTypesMap = SlideOnlyGameModeInstrcutionTypesMap;
+                break;
+            }
+        }
+
+    }
+    public void loadGameModeHashMaps(){
+        //make default mode
+        instructionTypes.put(0,new String[]{"Tap","Ja"});
+        instructionTypes.put(1,new String[]{"Switch","Cambiar"});
+        instructionTypes.put(2,new String[]{"Hold","Sostener"});
+        instructionTypes.put(3,new String[]{"Shake",""});
+        instructionTypes.put(4,new String[]{"Slide Right",""});
+        instructionTypes.put(5,new String[]{"Slide Left",""});
+        instructionTypes.put(6,new String[]{"Slide Up",""});
+        instructionTypes.put(7,new String[]{"Slide Down",""});
+        PackageManager PM= this.getPackageManager();
+        boolean PROXIMITY = PM.hasSystemFeature(PackageManager.FEATURE_SENSOR_PROXIMITY);
+
+        if(PROXIMITY){//can only exlude this play like this because it is the last one. the way random plays are picked is not optimal.
+            instructionTypes.put(8,new String[]{"Block","Bloquea"});
+        }
+
+
+
+    }
+    //TODO V2
+    public void menuOnClick(View v){
+        // mute voice
+        // mute wrong sounds
+        // gamemodes
+        // (only swipe)
+        // (no shake)
+        // (no block)
+        // (no shake, and no block)
+        // (The whole Game)
     }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -175,6 +244,7 @@ TextView instruction;
         scoreTV = (TextView)findViewById(R.id.scoretv) ;
         livesTV = (TextView)findViewById(R.id.livestv);
         blockImageAnimatedSignal = (ImageView)findViewById(R.id.blockImageAnimatedSignal);
+        //findViewById(R.id.menuImageView).setForeground(getResources().getDrawable(R.drawable.menu));
         handler = new Handler();
         start.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -190,37 +260,30 @@ TextView instruction;
             }
         });
         instruction = findViewById(R.id.instruction);
-        instructionTypes.put(0,new String[]{"Tap","Ja"});
-        instructionTypes.put(1,new String[]{"Switch","Cambiar"});
-        instructionTypes.put(2,new String[]{"Hold","Sostener"});
-        instructionTypes.put(3,new String[]{"Block","Bloquea"});
-        instructionTypes.put(4,new String[]{"Slide Right",""});
-        instructionTypes.put(5,new String[]{"Slide Left",""});
-        instructionTypes.put(6,new String[]{"Slide Up",""});
-        instructionTypes.put(7,new String[]{"Slide Down",""});
-        instructionTypes.put(8,new String[]{"Shake",""});
+        loadGameModeHashMaps();//instructionTypes.put("")...etctra
+
         //add drawables in order by index
         drawables_used_for_play_cards = new Drawable[]
                 {getResources().getDrawable(R.drawable.tap),//
                         getResources().getDrawable(R.drawable.sswitch),
                         getResources().getDrawable(R.drawable.hold),
-                        getResources().getDrawable(R.drawable.block),
+                        getResources().getDrawable(R.drawable.shake),
                         getResources().getDrawable(R.drawable.right),//r
                         getResources().getDrawable(R.drawable.left),//l
                         getResources().getDrawable(R.drawable.actual_up_arrow),//u
                         getResources().getDrawable(R.drawable.actual_down_arrow),
-                getResources().getDrawable(R.drawable.shake)};//d
+                getResources().getDrawable(R.drawable.block)};//d
 
         drawables_used_for_play_image_view = new Drawable[]
                 {getResources().getDrawable(R.drawable.tap),
                         getResources().getDrawable(R.drawable.sswitch),
                         getResources().getDrawable(R.drawable.hold),
-                        getResources().getDrawable(R.drawable.block),
+                        getResources().getDrawable(R.drawable.shake),
                         getResources().getDrawable(R.drawable.right),
                         getResources().getDrawable(R.drawable.left),
                         getResources().getDrawable(R.drawable.actual_up_arrow),
                         getResources().getDrawable(R.drawable.actual_down_arrow),
-                        getResources().getDrawable(R.drawable.shake)};
+                        getResources().getDrawable(R.drawable.block)};
         //used to get what sound to play for playTiles in correctAnswer
         sounds = new int[]{
             R.raw.abrupt60pluck1000,
@@ -241,14 +304,13 @@ TextView instruction;
         playImageView.setForeground(drawables_used_for_play_image_view[TAP]);
         removePlays();
         setupTextToSpeech();
+        //setGameMode(SLIDE_ONLY);
         super.onCreate(savedInstanceState);
     }
-
     public void setupTextToSpeech(){
         textToSpeech = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int i) {
-
                 // if No error is found then only it will run
                 if(i!=TextToSpeech.ERROR){
                     // To Choose language of speech
@@ -331,7 +393,6 @@ TextView instruction;
     public void startDetectingShake(){
         stopDetectingBlock();
 
-
         shakeThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -367,7 +428,7 @@ TextView instruction;
                         try {
                             Thread.sleep(10);
                         } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
+
                         }
                         mSensorManager.registerListener(sensorEventListener, mSensor,
                                 SensorManager.SENSOR_DELAY_NORMAL);
@@ -819,7 +880,7 @@ TextView instruction;
         //add views
             currentPlayLayout.removeAllViews();
             play = getRandomWithExclusion(0,instructionTypes.size()-1,new int[]{});
-
+            System.out.println("Play is "+play);
             String[] instructions = instructionTypes.get(play);
 
             instruction.setText(instructions[language]);
@@ -831,6 +892,8 @@ TextView instruction;
             if(play==SLIDE_LEFT)slideToExclude=SLIDE_RIGHT;
             if(play==SLIDE_RIGHT)slideToExclude=SLIDE_LEFT;
             int antiPlay = getRandomWithExclusion(0,instructionTypes.size()-1,new int[]{play,slideToExclude});
+
+
             addPlayByNumber(antiPlay);
 
             //stop from always playing on left correct answer on left

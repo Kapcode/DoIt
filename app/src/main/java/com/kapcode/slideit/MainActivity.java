@@ -87,6 +87,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     static final int seekWidth = 75;
     public static ImageView blockImageAnimatedSignal;
+    volatile AtomicBoolean block = new AtomicBoolean(false);
     static final int switchSeekWidth = seekWidth+20;
     static final int sliderHeight = 50;
     static Activity activity;
@@ -140,8 +141,11 @@ TextView instruction;
                     //correct
 
                     correctAnswer();
+                    stopDetectingBlock();
                 }else if(fail_for_block_when_not_correct_play){
+                    stopDetectingBlock();
                     wrongAnswer();
+
                 }else{
                     stopDetectingBlock();
                     say("game is over stopping block dettection");
@@ -347,15 +351,22 @@ TextView instruction;
     }
     public void stopDetectingShake(){
         if(shakeDetector!=null)shakeDetector.stop();//won't need null check after done creating shake Detection
+
     }
     public void startDetectingBlock(){
         stopDetectingShake();
         blockThread =new Thread(new Runnable() {
             @Override
             public void run() {
-                while(play==BLOCK){
-                    mSensorManager.registerListener(sensorEventListener, mSensor,
-                            SensorManager.SENSOR_DELAY_NORMAL);
+                boolean go = true;
+                while(go){
+                    if(play==BLOCK){
+                        mSensorManager.registerListener(sensorEventListener, mSensor,
+                                SensorManager.SENSOR_DELAY_NORMAL);
+                    }else{
+                        go=false;
+                    }
+
                 }
 
             }
@@ -367,7 +378,10 @@ TextView instruction;
     }
 
     public void stopDetectingBlock(){
+        if(blockThread!=null)blockThread.interrupt();
         mSensorManager.unregisterListener(this, mSensor);
+
+
     }
 
 

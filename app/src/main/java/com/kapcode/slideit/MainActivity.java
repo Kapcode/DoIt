@@ -57,12 +57,14 @@ import java.util.Locale;
 import java.util.OptionalInt;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 public class MainActivity extends AppCompatActivity implements SensorEventListener , ShakeDetector.Listener {
     int animatiotionDuration = 1500;
+    String real_interstitial_id = "ca-app-pub-2579373758747951/8770619492";
+    String test_interstitial_id = "ca-app-pub-3940256099942544/1033173712";
+    String interstitial_id = test_interstitial_id;
     static final int scoreIncrement = 25;
     Drawable pointsDrawable_to_Mutate, minusLivesDrawable_to_Mutate;
-    volatile AtomicBoolean isGameOverBool = new AtomicBoolean(true);//NEEDS TO BE VOLITILE!
+    volatile AtomicBoolean isGameOverBool = new AtomicBoolean(true);
     static AlertDialog.Builder gameOverAlertDialog;
    volatile ShakeDetector.Listener listener_ShakeDetector;
     volatile SensorEventListener sensorEventListener;
@@ -90,7 +92,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     static Activity activity;
     volatile static int play = 0;
     static Handler handler;
-    static Button start;
+    static ImageView start;
     static LinearLayout iconHorizontalLayout;
     int uiReactionDelay = 150;
     public static final int TAP=0,SWITCH=1,HOLD=2,BLOCK=3,SLIDE_RIGHT=4,SLIDE_LEFT=5,SLIDE_UP=6,SLIDE_DOWN=7,SHAKE=8;
@@ -102,9 +104,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     HashMap <Integer,String[]> instructionTypes = new HashMap<Integer,String[]>();
     Drawable[] drawables_used_for_play_cards, drawables_used_for_play_image_view;
     TextView scoreTV,livesTV;
-
-
-
 Toast toaster;
 TextView instruction;
  LinearLayout currentPlayLayout;
@@ -155,14 +154,11 @@ TextView instruction;
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
-
     }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         setContentView(R.layout.activity_main);
         activity=this;
-
         loadAds();
         pointsDrawable_to_Mutate = getResources().getDrawable(R.drawable.points);
         minusLivesDrawable_to_Mutate = getResources().getDrawable(R.drawable.minus_life);
@@ -172,7 +168,6 @@ TextView instruction;
         playImageView = (ImageView) findViewById(R.id.playImageView);
         toaster = new Toast(this);
         start = findViewById(R.id.start);
-
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
         scoreTV = (TextView)findViewById(R.id.scoretv) ;
@@ -187,8 +182,9 @@ TextView instruction;
                 changeLive(RESET);
                 nextPlay();
                 start.setVisibility(View.GONE);
+                findViewById(R.id.topImage).setVisibility(View.VISIBLE);
+                findViewById(R.id.iconLayout).setVisibility(View.GONE);
                 isGameOverBool.set(false);
-
             }
         });
         instruction = findViewById(R.id.instruction);
@@ -196,7 +192,6 @@ TextView instruction;
         instructionTypes.put(1,new String[]{"Switch","Cambiar"});
         instructionTypes.put(2,new String[]{"Hold","Sostener"});
         instructionTypes.put(3,new String[]{"Block","Bloquea"});
-
         instructionTypes.put(4,new String[]{"Slide Right",""});
         instructionTypes.put(5,new String[]{"Slide Left",""});
         instructionTypes.put(6,new String[]{"Slide Up",""});
@@ -239,8 +234,9 @@ TextView instruction;
 
 
         };
-
-
+        start.setBackgroundColor(playColors[TAP]);
+        instruction.setText("Tap It!");
+        playImageView.setForeground(drawables_used_for_play_image_view[TAP]);
         removePlays();
         setupTextToSpeech();
         super.onCreate(savedInstanceState);
@@ -272,9 +268,16 @@ TextView instruction;
     @Override
     protected void onPause() {
         // Register a listener for the sensor.
-        super.onResume();
+
         stopDetectingBlock();
         stopDetectingShake();
+        super.onResume();
+    }
+    protected void onDestroy(){
+
+        stopDetectingBlock();
+        stopDetectingShake();
+        super.onDestroy();
     }
     public void cancel(){
         toaster.cancel();
@@ -302,10 +305,8 @@ TextView instruction;
         AdView mAdView;
         mAdView = findViewById(R.id.adView);
         AdRequest adRequest = new AdRequest.Builder().build();
-
         mAdView.loadAd(adRequest);
-
-        InterstitialAd.load(this,"ca-app-pub-3940256099942544/1033173712", adRequest,
+        InterstitialAd.load(this,interstitial_id, adRequest,
                 new InterstitialAdLoadCallback() {
                     @Override
                     public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
@@ -325,7 +326,6 @@ TextView instruction;
                     }
                 });
     }
-
     public void startDetectingShake(){
         stopDetectingBlock();
 
@@ -348,7 +348,6 @@ TextView instruction;
     public void stopDetectingShake(){
         if(shakeDetector!=null)shakeDetector.stop();//won't need null check after done creating shake Detection
     }
-
     public void startDetectingBlock(){
         stopDetectingShake();
         blockThread =new Thread(new Runnable() {
@@ -1013,6 +1012,10 @@ TextView instruction;
                                 interstitialAd();
                                 animateRemoveAllViews();
                                 start.setVisibility(View.VISIBLE);
+                                findViewById(R.id.topImage).setVisibility(View.INVISIBLE);
+                                instruction.setText("Tap It!");
+                                playImageView.setForeground(drawables_used_for_play_image_view[TAP]);
+                                findViewById(R.id.iconLayout).setVisibility(View.VISIBLE);
 
                             }
                         })
@@ -1023,6 +1026,10 @@ TextView instruction;
                                 // Continue with delete operation
                                 animateRemoveAllViews();
                                 start.setVisibility(View.VISIBLE);
+                                findViewById(R.id.topImage).setVisibility(View.INVISIBLE);
+                                instruction.setText("Tap It!");
+                                playImageView.setForeground(drawables_used_for_play_image_view[TAP]);
+                                findViewById(R.id.iconLayout).setVisibility(View.VISIBLE);
                                 interstitialAd();
 
                             }

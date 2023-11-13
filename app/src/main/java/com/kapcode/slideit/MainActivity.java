@@ -70,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     volatile SensorEventListener sensorEventListener;
     volatile Thread shakeThread = null,blockThread=null;
     volatile ShakeDetector shakeDetector;
-    final boolean fail_for_block_when_not_correct_play = true;// some might find that annoying,
+    final boolean fail_for_block_when_not_correct_play = false;// some might find that annoying,
     // deffinatly could be issue for shake or tilt / acidentaly tilting phone while plying  (maybey check if its even on the board?)
     static final int swipeThreshhold = 100;
     MediaPlayer mp;
@@ -145,10 +145,8 @@ TextView instruction;
                 }else if(fail_for_block_when_not_correct_play){
                     stopDetectingBlock();
                     wrongAnswer();
-
                 }else{
                     stopDetectingBlock();
-                    say("game is over stopping block dettection");
                 }
             }
 
@@ -339,6 +337,11 @@ TextView instruction;
             public void run() {
 
                 while( play==SHAKE){
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
                     if(shakeDetector==null)shakeDetector = new ShakeDetector(listener_ShakeDetector);
                     shakeDetector.setSensitivity(ShakeDetector.SENSITIVITY_LIGHT);
@@ -361,6 +364,11 @@ TextView instruction;
                 boolean go = true;
                 while(go){
                     if(play==BLOCK){
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
                         mSensorManager.registerListener(sensorEventListener, mSensor,
                                 SensorManager.SENSOR_DELAY_NORMAL);
                     }else{

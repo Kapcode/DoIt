@@ -70,6 +70,16 @@
         android:textColor="#EA2929"
         android:textSize="34sp" />
 
+    <TextView
+        android:id="@+id/privacy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:background="#5E5E5E"
+        android:onClick="privacy"
+        android:text="Privacy"
+        android:textColor="#FFFFFF" />
+
     <ImageView
         android:id="@+id/start"
         android:layout_width="match_parent"
